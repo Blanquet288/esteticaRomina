@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Estética Romina — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/pdf-cierre.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<div id="tkt-print"></div>
+
+<!-- Plantilla off-screen para PDF (html2pdf.js) -->
+<div id="cj-pdf-host" class="cj-pdf-host" aria-hidden="true">
+  <div id="cj-pdf-root" class="cj-pdf-doc"></div>
+</div>
+
+<!-- ════ LOGIN ════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-icon">💅</div>
+      <h1>Estética Romina</h1>
+      <p>Sistema de Gestión Profesional</p>
+    </div>
+    <div class="login-form">
+      <div class="lg-field"><label>Correo Electrónico</label><input type="email" id="li-email" placeholder="correo@ejemplo.com" autocomplete="email"></div>
+      <div class="lg-field"><label>Contraseña</label><input type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password"></div>
+      <div class="login-err" id="li-err"></div>
+      <button class="btn-login" id="btn-li" onclick="doLogin()">Iniciar Sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ APP ════ -->
+<div id="app">
+  <div class="drawer-overlay" id="drawer-overlay" aria-hidden="true"></div>
+  <nav class="sidebar" id="sb">
+    <button class="sb-toggle" id="sb-tog" onclick="toggleSB()">‹</button>
+    <div class="sb-head">
+      <div class="sb-logo">💅</div>
+      <span class="sb-brand">Estética Romina</span>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-group open" data-grupo="principal">
+        <button type="button" class="sb-cat" onclick="toggleSbGroup(this)" aria-expanded="true">
+          <span class="sb-chev" aria-hidden="true"></span>
+          <span class="sb-cat-lbl">Principal</span>
+        </button>
+        <div class="sb-group-items">
+          <div class="nav-it on" onclick="go('dashboard')" data-s="dashboard"><span class="nav-ic">🏠</span><span class="nav-lbl">Dashboard</span></div>
+          <div class="nav-it" onclick="go('ventas')" data-s="ventas"><span class="nav-ic">💰</span><span class="nav-lbl">Venta Rápida</span></div>
+          <div class="nav-it" onclick="go('masiva')" data-s="masiva"><span class="nav-ic">⚡</span><span class="nav-lbl">Corte por Empleada</span></div>
+          <div class="nav-it" onclick="go('historico')" data-s="historico"><span class="nav-ic">📅</span><span class="nav-lbl">Registro Histórico Diario</span></div>
+          <div class="nav-it" onclick="go('gastos')" data-s="gastos"><span class="nav-ic">🧾</span><span class="nav-lbl">Gastos</span></div>
+        </div>
+      </div>
+      <div class="sb-group" data-grupo="gestion">
+        <button type="button" class="sb-cat" onclick="toggleSbGroup(this)" aria-expanded="false">
+          <span class="sb-chev" aria-hidden="true"></span>
+          <span class="sb-cat-lbl">Gestión</span>
+        </button>
+        <div class="sb-group-items">
+          <div class="nav-it" onclick="go('catalogo')" data-s="catalogo"><span class="nav-ic">🗂️</span><span class="nav-lbl">Catálogo de Servicios</span></div>
+          <div class="nav-it" onclick="go('empleados')" data-s="empleados"><span class="nav-ic">👩‍💼</span><span class="nav-lbl">Empleadas</span></div>
+          <div class="nav-it" onclick="go('admin', { clearAdminDrill: true })" data-s="admin"><span class="nav-ic">🗃️</span><span class="nav-lbl">Administrar Datos</span></div>
+          <div class="nav-it" onclick="go('ahorros')" data-s="ahorros"><span class="nav-ic">🏦</span><span class="nav-lbl">Ahorros</span></div>
+        </div>
+      </div>
+      <div class="sb-group" data-grupo="analisis">
+        <button type="button" class="sb-cat" onclick="toggleSbGroup(this)" aria-expanded="false">
+          <span class="sb-chev" aria-hidden="true"></span>
+          <span class="sb-cat-lbl">Análisis</span>
+        </button>
+        <div class="sb-group-items">
+          <div class="nav-it" onclick="go('reportes')" data-s="reportes"><span class="nav-ic">📊</span><span class="nav-lbl">Reportes</span></div>
+          <div class="nav-it" onclick="go('cierre')" data-s="cierre"><span class="nav-ic">🔒</span><span class="nav-lbl">Cierre de Caja</span></div>
+        </div>
+      </div>
+      <div class="sb-group" data-grupo="sistema">
+        <button type="button" class="sb-cat" onclick="toggleSbGroup(this)" aria-expanded="false">
+          <span class="sb-chev" aria-hidden="true"></span>
+          <span class="sb-cat-lbl">Sistema</span>
+        </button>
+        <div class="sb-group-items">
+          <div class="nav-it" onclick="go('config')" data-s="config"><span class="nav-ic">⚙️</span><span class="nav-lbl">Configuración</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="sb-foot">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av">R</div>
+        <div class="sb-uinfo"><div class="sb-uname" id="sb-uname">Admin</div><div class="sb-uemail" id="sb-uemail">—</div></div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()"><span class="nav-ic">🚪</span><span class="nav-lbl">Cerrar Sesión</span></button>
+    </div>
+  </nav>
+
+  <div class="main" id="main">
+    <header class="mobile-topbar" id="mobile-topbar" aria-label="Barra superior">
+      <button type="button" class="mobile-menu-btn" id="btn-mobile-menu" aria-controls="sb" aria-expanded="false" aria-label="Abrir menú">
+        <span class="mobile-menu-ic" aria-hidden="true">☰</span>
+      </button>
+      <div class="mobile-topbar-mid">
+        <span class="mobile-topbar-brand">Estética Romina</span>
+        <span class="mobile-topbar-page" id="mobile-tb-title">Dashboard</span>
+        <span class="mobile-topbar-sub" id="mobile-tb-sub">Vista general del negocio</span>
+      </div>
+      <div class="mobile-topbar-date" id="mobile-tb-date" aria-live="polite"></div>
+    </header>
+    <div class="topbar">
+      <div class="tb-left"><h2 id="tb-title">Dashboard</h2><p id="tb-sub">Vista general del negocio</p></div>
+      <div class="tb-right"><div class="tb-date" id="tb-date"></div></div>
+    </div>
+
+    <!-- ── DASHBOARD ── -->
+    <section class="pg on" id="pg-dashboard">
+      <div class="stats">
+        <div class="stat"><div class="stat-lbl">Ventas Hoy</div><div class="stat-val" id="s-vhoy">$0</div><div class="stat-sub">Registros del día</div><div class="stat-ico">💰</div></div>
+        <div class="stat"><div class="stat-lbl">Ventas del Mes</div><div class="stat-val" id="s-vmes">$0</div><div class="stat-sub">Mes actual</div><div class="stat-ico">📈</div></div>
+        <div class="stat"><div class="stat-lbl">Gastos del Mes</div><div class="stat-val" id="s-gmes">$0</div><div class="stat-sub">Total egresos</div><div class="stat-ico">🧾</div></div>
+        <div class="stat"><div class="stat-lbl">Fondo de Ahorro</div><div class="stat-val" id="s-aho">$0</div><div class="stat-sub">Saldo disponible</div><div class="stat-ico">🏦</div></div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-h"><span>📋</span> Últimas Ventas del Mes</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Servicio</th><th>Empleada</th><th>Turno</th><th>Monto</th><th>Fecha</th></tr></thead>
+              <tbody id="tb-dash-ventas"><tr><td colspan="5" style="text-align:center;color:var(--text2)">Cargando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span>✨</span> Resumen del Mes</div>
+          <div class="caja-res">
+            <div class="caja-row"><span class="caja-lbl">Ventas Brutas</span><span class="caja-val" id="d-vb">$0</span></div>
+            <div class="caja-row"><span class="caja-lbl">Comisiones Pagadas</span><span class="caja-val" id="d-com" style="color:var(--warn)">$0</span></div>
+            <div class="caja-row"><span class="caja-lbl">Utilidad del Negocio</span><span class="caja-val" id="d-util" style="color:var(--ok)">$0</span></div>
+            <div class="caja-row"><span class="caja-lbl">Empleadas Activas</span><span class="caja-val caja-big" id="d-emp">0</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── VENTA RÁPIDA ── -->
+    <section class="pg" id="pg-ventas">
+      <div class="sec-head">
+        <h2 class="sec-title">Venta Rápida</h2>
+        <button class="btn btn-s" onclick="toggleHist()">📋 Ver Historial</button>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-h"><span>➕</span> Registrar Nueva Venta</div>
+          <div class="frow x3">
+            <div class="field"><label>Fecha</label><input type="date" id="v-fecha" onchange="onVentaFechaTurnoSync()"></div>
+            <div class="field"><label>Empleada</label><select id="v-emp" onchange="onVentaEmpTurno()"><option value="">Seleccionar…</option></select></div>
+            <div class="field">
+              <label>Turno</label><select id="v-turno"><option value="">— Seleccionar turno —</option></select>
+              <p id="v-turno-descanso-hint" class="turno-descanso-hint" style="display:none" role="status"></p>
+            </div>
+          </div>
+          <div class="frow x1">
+            <div class="field">
+              <label>Servicio del Catálogo</label>
+              <select id="v-serv-sel" onchange="onVentaServChange()">
+                <option value="">Seleccionar servicio…</option>
+              </select>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="field"><label>Precio ($) <small style="color:var(--text3)">(editable)</small></label><input type="number" id="v-monto" placeholder="0.00" step="0.01" oninput="calcCom()"></div>
+            <div class="field"><label>% Comisión <small style="color:var(--text3)">(editable)</small></label><input type="number" id="v-cpct" placeholder="0" step="1" oninput="calcCom()"></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label>Comisión Empleada ($)</label><input type="number" id="v-cmonto" readonly></div>
+            <div class="field"><label>Utilidad Negocio ($)</label><input type="number" id="v-util" readonly></div>
+          </div>
+          <button class="btn btn-p btn-full" onclick="regVenta()">💾 Guardar y Generar Ticket</button>
+        </div>
+        <div class="card" id="tkt-card" style="display:none">
+          <div class="card-h"><span>🧾</span> Ticket de Venta</div>
+          <div id="tkt-preview"></div>
+          <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+            <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir</button>
+            <button class="btn btn-s" onclick="document.getElementById('tkt-card').style.display='none'">✕ Cerrar</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="v-hist-card" style="margin-top:18px;display:none">
+        <div class="card-h"><span>📋</span> Historial de Ventas</div>
+        <div class="month-sel">
+          <label style="font-size:12.5px;color:var(--text2)">Filtrar:</label>
+          <input type="month" id="v-mf" class="inp-month" onchange="loadVHist()" title="Elegir mes y año">
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Empleada</th><th>Turno</th><th>Servicio</th><th>Monto</th><th>Comisión</th><th>%</th><th>Utilidad</th></tr></thead>
+            <tbody id="tb-v-hist"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── VENTA MASIVA ── -->
+    <section class="pg" id="pg-masiva">
+      <div class="sec-head">
+        <h2 class="sec-title">Corte por Empleada</h2>
+        <div class="al al-info" style="margin-bottom:0;font-size:12.5px">⚡ Captura múltiples servicios de un día de trabajo en una sola pantalla</div>
+      </div>
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-h"><span>📋</span> Datos del Corte</div>
+        <div class="frow x3">
+          <div class="field"><label>Fecha del Corte</label><input type="date" id="bk-fecha" onchange="onBulkFechaTurnoSync()"></div>
+          <div class="field"><label>Empleada</label><select id="bk-emp" onchange="onBulkEmpTurno()"><option value="">Seleccionar empleada…</option></select></div>
+          <div class="field">
+            <label>Turno</label><select id="bk-turno"><option value="">— Seleccionar turno —</option></select>
+            <p id="bk-turno-descanso-hint" class="turno-descanso-hint" style="display:none" role="status"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-h" style="justify-content:space-between">
+          <span><span>🗂️</span> Líneas de Servicio</span>
+          <button class="btn btn-s btn-sm" onclick="addBulkRow()">➕ Agregar Línea</button>
+        </div>
+        <div class="bulk-table-wrap">
+          <table class="bulk-table">
+            <thead>
+              <tr>
+                <th style="min-width:180px">Servicio</th>
+                <th style="min-width:90px">Cantidad</th>
+                <th style="min-width:110px">Precio Unit. ($)</th>
+                <th style="min-width:80px">Com. (%)</th>
+                <th style="min-width:110px">Subtotal ($)</th>
+                <th style="min-width:110px">Comisión ($)</th>
+                <th style="min-width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="bulk-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bulk-totals">
+        <div class="bulk-totals-grid">
+          <div class="bt-item"><div class="bt-lbl">Líneas de Servicio</div><div class="bt-val" id="bk-nrows">0</div></div>
+          <div class="bt-item"><div class="bt-lbl">Total Generado</div><div class="bt-val accent" id="bk-total">$0.00</div></div>
+          <div class="bt-item"><div class="bt-lbl">Total Comisión Empleada</div><div class="bt-val warn" id="bk-comtot">$0.00</div></div>
+          <div class="bt-item"><div class="bt-lbl">Ganancia al Negocio</div><div class="bt-val ok" id="bk-util">$0.00</div></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-p" onclick="saveBulk()">💾 Guardar Todas las Ventas</button>
+        <button class="btn btn-s" onclick="clearBulk()">🗑️ Limpiar Todo</button>
+      </div>
+    </section>
+
+    <!-- ── REGISTRO HISTÓRICO DIARIO ── -->
+    <section class="pg" id="pg-historico">
+      <div class="sec-head">
+        <h2 class="sec-title">Registro Histórico Diario</h2>
+      </div>
+      <div class="al al-info" style="margin-bottom:18px">
+        Registra en un solo paso el <strong>total del día</strong> por empleada (días pasados sin detalle de cortes). Se guarda en ventas con <code style="font-size:12px;background:var(--bg);padding:2px 6px;border-radius:4px">tipo: historico_diario</code> para distinguirlo de ventas por servicio.
+      </div>
+      <div class="card" style="max-width:640px">
+        <div class="card-h"><span>📅</span> Nuevo resumen de día</div>
+        <div class="frow x3">
+          <div class="field"><label>Fecha del día laborado</label><input type="date" id="rh-fecha" onchange="onRhFechaTurnoSync()"></div>
+          <div class="field"><label>Empleada</label><select id="rh-emp" onchange="onRhEmpTurno()"><option value="">Seleccionar…</option></select></div>
+          <div class="field">
+            <label>Turno</label><select id="rh-turno"><option value="">— Seleccionar turno —</option></select>
+            <p id="rh-turno-descanso-hint" class="turno-descanso-hint" style="display:none" role="status"></p>
+          </div>
+        </div>
+        <div class="frow">
+          <div class="field"><label>Total generado a la estética ($)</label><input type="number" id="rh-monto" placeholder="0.00" step="0.01" min="0"></div>
+          <div class="field"><label>Total comisión empleada ($)</label><input type="number" id="rh-com" placeholder="0.00" step="0.01" min="0"></div>
+        </div>
+        <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px">El primer campo es lo que <strong>se queda la estética</strong>; el segundo, la <strong>comisión</strong>. Se guarda <strong>venta bruta</strong> = ambos sumados, y la utilidad del negocio = monto de estética (coherente con ventas rápidas: bruto − comisión = utilidad).</p>
+        <button class="btn btn-p btn-full" onclick="saveHistoricoDiario()">💾 Guardar resumen del día</button>
+      </div>
+    </section>
+
+    <!-- ── CATÁLOGO ── -->
+    <section class="pg" id="pg-catalogo">
+      <div class="sec-head">
+        <h2 class="sec-title">Catálogo de Servicios</h2>
+        <button class="btn btn-p" onclick="openCatModal()">➕ Nuevo Servicio</button>
+      </div>
+      <div class="al al-info">💡 Cuando edites el precio o comisión de un servicio, <strong>las ventas ya registradas no se modifican</strong>. El porcentaje usado en cada venta queda guardado de forma permanente.</div>
+      <div id="cat-grid-wrap" style="margin-top:18px">
+        <div class="ld"><div class="spin"></div></div>
+      </div>
+    </section>
+
+    <!-- ── GASTOS ── -->
+    <section class="pg" id="pg-gastos">
+      <div class="sec-head"><h2 class="sec-title">Gestión de Gastos</h2></div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-h"><span>➕</span> Registrar Gasto</div>
+          <div class="frow">
+            <div class="field"><label>Fecha</label><input type="date" id="g-fecha"></div>
+            <div class="field"><label>Categoría</label><select id="g-cat"><option value="Fijo">Fijo (Renta, Agua, Luz…)</option><option value="Operativo">Operativo (Insumos, Extras…)</option></select></div>
+          </div>
+          <div class="frow x1"><div class="field"><label>Concepto</label><input type="text" id="g-concepto" placeholder="Ej: Renta mensual, Tinte…"></div></div>
+          <div class="frow x1"><div class="field"><label>Monto ($)</label><input type="number" id="g-monto" placeholder="0.00" step="0.01"></div></div>
+          <button class="btn btn-p btn-full" onclick="regGasto()">💾 Guardar Gasto</button>
+        </div>
+        <div class="card">
+          <div class="card-h"><span>📊</span> Resumen del Mes</div>
+          <div class="gsum">
+            <div class="gcat"><div class="gcat-lbl">Gastos Fijos</div><div class="gcat-val" id="gs-fijo">$0</div></div>
+            <div class="gcat"><div class="gcat-lbl">Gastos Operativos</div><div class="gcat-val" id="gs-op">$0</div></div>
+            <div class="gcat"><div class="gcat-lbl">Total General</div><div class="gcat-val" id="gs-tot" style="color:var(--bad)">$0</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px">
+        <div class="card-h"><span>📋</span> Lista de Gastos</div>
+        <div class="month-sel"><label style="font-size:12.5px;color:var(--text2)">Filtrar:</label><input type="month" id="g-mf" class="inp-month" onchange="loadGastos()" title="Elegir mes y año"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Monto</th><th></th></tr></thead>
+            <tbody id="tb-gastos"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── EMPLEADOS ── -->
+    <section class="pg" id="pg-empleados">
+      <div class="sec-head">
+        <h2 class="sec-title">Gestión de Empleadas</h2>
+        <button class="btn btn-p" onclick="openEmpModal()">➕ Nueva Empleada</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Rol</th><th>% Comisión Base</th><th>Horario</th><th>Acciones</th></tr></thead>
+            <tbody id="tb-emps"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── AHORROS ── -->
+    <section class="pg" id="pg-ahorros">
+      <div class="sec-head"><h2 class="sec-title">Fondo de Ahorros</h2></div>
+      <div class="sav-widget">
+        <div class="sav-lbl">Saldo Total Disponible</div>
+        <div class="sav-amt" id="sav-amt">$0.00</div>
+        <div class="sav-sub">Fondo de ahorro empresarial</div>
+        <div class="sav-btns">
+          <button class="btn btn-in" onclick="openAhoModal('entrada')">⬆️ Ingresar Ahorro</button>
+          <button class="btn btn-out" onclick="openAhoModal('salida')">⬇️ Retirar para Gasto Extra</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px">
+        <div class="card-h"><span>📜</span> Historial de Movimientos</div>
+        <div class="hist-list" id="aho-hist"><div class="ld"><div class="spin"></div></div></div>
+      </div>
+    </section>
+
+    <!-- ── ADMINISTRAR DATOS (Gestor de movimientos) ── -->
+    <section class="pg" id="pg-admin">
+      <div class="sec-head">
+        <h2 class="sec-title">Administrar Datos</h2>
+        <div class="month-sel" style="margin-bottom:0">
+          <label style="font-size:12.5px;color:var(--text2)">Mes:</label>
+          <input type="month" id="adm-m" class="inp-month" onchange="onAdminMesChange()" title="Elegir mes y año">
+        </div>
+      </div>
+      <div class="al al-info" style="margin-bottom:16px">
+        <span>ℹ️</span> Movimientos agrupados por día. Expande cada día para ver el detalle. Las ediciones se guardan en Firestore al instante.
+      </div>
+      <div id="adm-drill-banner" class="adm-drill-banner" style="display:none">
+        <span id="adm-drill-txt"></span>
+        <button type="button" class="btn btn-s btn-sm" onclick="clearAdminDrillFilter()">Quitar filtro de semana</button>
+      </div>
+      <div class="card">
+        <div class="card-h"><span>📋</span> Movimientos del mes</div>
+        <div id="adm-trends-root" class="adm-trends-root" hidden></div>
+        <div id="adm-accordion-wrap" class="adm-accordion-wrap">
+          <div id="adm-accordion-root" class="adm-accordion">
+            <div class="adm-loading">Cargando…</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── REPORTES ── -->
+    <section class="pg" id="pg-reportes">
+      <div class="sec-head">
+        <h2 class="sec-title">Reportes y Estadísticas</h2>
+        <div class="month-sel" style="margin-bottom:0"><input type="month" id="rep-m" class="inp-month" onchange="loadReportes()" title="Elegir mes y año"></div>
+      </div>
+      <div class="tabs">
+        <button class="tab on" onclick="switchTab('ventas',this)">📊 Ventas</button>
+        <button class="tab" onclick="switchTab('empleadas',this)">👩‍💼 Empleadas</button>
+        <button class="tab" onclick="switchTab('servicios',this)">🗂️ Servicios Estrella</button>
+        <button class="tab" onclick="switchTab('gastos',this)">🧾 Gastos</button>
+      </div>
+      <div id="rt-ventas">
+        <div class="al al-info" style="margin-bottom:18px">
+          <span>ℹ️</span> Las cifras del mes incluyen <strong>todas</strong> las ventas en Firestore: servicios individuales, cortes por línea y registros <span class="bdg bdg-info">histórico diario</span> (resumen de día).
+        </div>
+        <div class="g2">
+          <div class="card">
+            <div class="card-h"><span>📊</span> Suma semanal del mes</div>
+            <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45">Total <strong>bruto vendido</strong> por bloques del calendario (Semana 1 a 4). La gráfica apila por <strong>empleada</strong> (leyenda inferior); la altura total de cada barra coincide con la suma de la tabla.</p>
+            <div class="ch-wrap rep-ch-wrap" title="Clic en una barra: abrir Administrar Datos filtrado por esa semana"><canvas id="ch-vsem"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span>📋</span> Tabla — suma por semana</div>
+            <div class="tbl-wrap">
+              <table>
+            <thead><tr><th>Semana</th><th>Periodo (días)</th><th>Total vendido</th><th>% del mes</th></tr></thead>
+            <tbody id="tb-rep-semanal" title="Clic en una fila: Administrar Datos filtrado por esa semana"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="rt-empleadas" style="display:none">
+        <div class="card">
+          <div class="card-h rep-emp-card-h" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <span><span>👩‍💼</span> Rendimiento detallado por empleada</span>
+            <select id="rep-emps-week" class="rep-emps-week-sel" title="Filtrar totales por bloque del mes" aria-label="Semana del mes">
+              <option value="0">Todo el mes</option>
+              <option value="1">Semana 1 (días 1–7)</option>
+              <option value="2">Semana 2 (días 8–14)</option>
+              <option value="3">Semana 3 (días 15–21)</option>
+              <option value="4">Semana 4 (días 22 al fin de mes)</option>
+            </select>
+          </div>
+          <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45">Mismo mes seleccionado arriba. <strong>Total bruto</strong> = suma de <code style="font-size:11px">monto</code>; <strong>comisión</strong> = lo retenido por la empleada; <strong>utilidad neta</strong> = lo que queda para la estética (incluye ventas sueltas y resúmenes diarios).</p>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Empleada</th><th>Movimientos</th><th>Total bruto generado</th><th>Total comisión</th><th>Utilidad neta (estética)</th></tr></thead>
+              <tbody id="tb-rep-emps"></tbody>
+              <tfoot id="tf-rep-emps" style="font-weight:700;background:var(--bg)"></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="rt-servicios" style="display:none">
+        <div class="g2">
+          <div class="card"><div class="card-h"><span>⭐</span> Servicios más Vendidos</div><div class="ch-wrap"><canvas id="ch-svcs"></canvas></div></div>
+          <div class="card">
+            <div class="card-h"><span>📋</span> Ranking de Servicios</div>
+            <div class="tbl-wrap">
+              <table><thead><tr><th>#</th><th>Servicio</th><th>Ventas</th><th>Total Generado</th></tr></thead><tbody id="tb-rep-svcs"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="rt-gastos" style="display:none">
+        <div class="g2">
+          <div class="card"><div class="card-h"><span>🥧</span> Distribución de Gastos</div><div class="ch-wrap" style="height:240px"><canvas id="ch-gdist"></canvas></div></div>
+          <div class="card">
+            <div class="card-h"><span>📋</span> Desglose por Concepto</div>
+            <div class="tbl-wrap">
+              <table><thead><tr><th>Concepto</th><th>Categoría</th><th>Monto</th></tr></thead><tbody id="tb-rep-gas"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CIERRE ── -->
+    <section class="pg" id="pg-cierre">
+      <div class="sec-head no-print">
+        <h2 class="sec-title">Cierre de Caja</h2>
+        <button type="button" class="btn btn-s" onclick="imprimirCierreReporte()">🖨️ Generar Reporte PDF</button>
+      </div>
+
+      <div id="cj-reporte-document" class="cj-reporte-document">
+        <header class="cj-doc-head">
+          <div class="cj-doc-logo">💅</div>
+          <div class="cj-doc-head-txt">
+            <div class="cj-doc-empresa" id="cj-doc-empresa">Estética Romina</div>
+            <div class="cj-doc-tag">Reporte financiero de cierre</div>
+            <div class="cj-doc-periodo" id="cj-doc-periodo">—</div>
+            <div class="cj-doc-fecha" id="cj-doc-fecha">—</div>
+          </div>
+        </header>
+
+        <div class="card cj-resumen-hero">
+          <div class="cj-resumen-hero-top">
+            <div>
+              <div class="cj-block-kicker">Análisis del periodo</div>
+              <h3 class="cj-block-title">Resumen del mes</h3>
+              <p class="cj-block-desc">Datos en vivo desde Firestore para el mes seleccionado.</p>
+            </div>
+            <div class="field cj-mes-field">
+              <label>Mes del informe</label>
+              <input type="month" id="cj-m" class="inp-month" onchange="onCjMesChange()" title="Elegir mes y año">
+            </div>
+          </div>
+
+          <div class="cj-resumen-grid">
+            <div class="cj-panel">
+              <div class="cj-panel-h"><span>👩‍💼</span> Generación por empleada</div>
+              <p class="cj-panel-sub">Total vendido (bruto) y comisión retenida en el mes.</p>
+              <div class="tbl-wrap cj-tbl-wrap">
+                <table class="cj-tbl">
+                  <thead><tr><th>Empleada</th><th>Total vendido</th><th>Comisión</th></tr></thead>
+                  <tbody id="tb-cj-emp"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="cj-panel">
+              <div class="cj-panel-h"><span>📅</span> Desglose por semanas</div>
+              <p class="cj-panel-sub">Suma de ventas por bloque calendario (mismo criterio que Reportes).</p>
+              <div class="cj-sem-grid" id="cj-sem-grid"></div>
+            </div>
+            <div class="cj-panel cj-panel-gasto">
+              <div class="cj-panel-h"><span>🧾</span> Resumen de gastos</div>
+              <p class="cj-panel-sub">Total de egresos registrados en el mes.</p>
+              <div class="cj-gasto-big" id="cj-res-gasto-tot">$0.00</div>
+              <div class="cj-gasto-lbl">Gastos del mes</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cj-ganancia-wrap" id="cj-ganancia-wrap">
+          <div class="cj-gn-glow" aria-hidden="true"></div>
+          <div class="cj-gn-inner">
+            <div class="cj-gn-kicker">Indicador clave del periodo</div>
+            <h3 class="cj-gn-title">Ganancia Neta del Mes</h3>
+            <p class="cj-gn-formula">
+              (Ventas totales <strong>brutas</strong>) <span class="cj-gn-op">−</span> (Comisiones) <span class="cj-gn-op">−</span> (Gastos) = utilidad del negocio acumulada − gastos
+            </p>
+            <div class="cj-gn-break">
+              <div class="cj-gn-cell"><span class="cj-gn-cell-lbl">Ventas totales</span><span class="cj-gn-cell-val" id="cj-net-v">$0.00</span></div>
+              <div class="cj-gn-cell"><span class="cj-gn-cell-lbl">Comisiones</span><span class="cj-gn-cell-val cj-gn-warn" id="cj-net-c">$0.00</span></div>
+              <div class="cj-gn-cell"><span class="cj-gn-cell-lbl">Gastos (fijos + operativos)</span><span class="cj-gn-cell-val cj-gn-bad" id="cj-net-g">$0.00</span></div>
+            </div>
+            <div class="cj-gn-hero">
+              <span class="cj-gn-hero-lbl">Resultado</span>
+              <div class="cj-gn-hero-val" id="cj-net-profit-val">$0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card cj-edo-res" id="cj-edo-res">
+          <div class="cj-edo-head">
+            <h3 class="cj-edo-title">Estado de resultados</h3>
+            <p class="cj-edo-sub">Ventas totales = <strong>bruto</strong> (en histórico: estética + comisión). Ganancia neta = suma de utilidades del negocio − gastos (= bruto − comisiones − gastos).</p>
+          </div>
+          <div class="cj-edo-eq">
+            <div class="cj-edo-line">
+              <span class="cj-edo-term">Ventas totales</span>
+              <span class="cj-edo-amt" id="cj-edo-v">$0.00</span>
+            </div>
+            <span class="cj-edo-op" aria-hidden="true">−</span>
+            <div class="cj-edo-line">
+              <span class="cj-edo-term">Comisiones</span>
+              <span class="cj-edo-amt cj-edo-warn" id="cj-edo-c">$0.00</span>
+            </div>
+            <span class="cj-edo-op" aria-hidden="true">−</span>
+            <div class="cj-edo-line">
+              <span class="cj-edo-term">Gastos</span>
+              <span class="cj-edo-amt cj-edo-bad" id="cj-edo-g">$0.00</span>
+            </div>
+            <span class="cj-edo-op cj-edo-eqsign" aria-hidden="true">=</span>
+            <div class="cj-edo-line cj-edo-result">
+              <span class="cj-edo-term">Ganancia neta</span>
+              <span class="cj-edo-amt cj-edo-net" id="cj-edo-net">$0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="cj-divider no-print"></div>
+        <h3 class="cj-section-label no-print"><span>🔒</span> Distribución del remanente y ahorro</h3>
+
+        <div class="g2 cj-cierre-grid">
+          <div class="card">
+            <div class="card-h"><span>🔒</span> Calcular cierre mensual</div>
+            <div class="field" style="margin-bottom:14px"><label>% del remanente al fondo de ahorro</label><input type="number" id="cj-pct" value="10" min="0" max="100"></div>
+            <div class="field" style="margin-bottom:14px"><label>Reparto del remanente entre dueños</label><select id="cj-num-duenos" class="inp"><option value="1">1 Dueño</option><option value="2" selected>2 Dueños</option></select></div>
+            <div class="field" style="margin-top:14px;"><label><input type="checkbox" id="cj-inc-diario"> Incluir anexo de desglose diario de ventas en el PDF</label></div>
+            <button type="button" class="btn btn-p btn-full no-print" onclick="calcCierre()" style="margin-bottom:12px">🔒 Calcular cierre</button>
+            <div class="al al-info no-print"><span>ℹ️</span> El monto a distribuir se reparte entre el número de dueños indicado, descontando el % de ahorro.</div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span>📊</span> Resultado del cierre</div>
+            <div class="caja-res cj-caja-res">
+              <div class="caja-row"><span class="caja-lbl">Total ventas</span><span class="caja-val" id="cj-v">—</span></div>
+              <div class="caja-row"><span class="caja-lbl">(-) Comisiones</span><span class="caja-val" id="cj-c" style="color:var(--warn)">—</span></div>
+              <div class="caja-row"><span class="caja-lbl">(-) Gastos</span><span class="caja-val" id="cj-g" style="color:var(--bad)">—</span></div>
+              <div class="caja-row"><span class="caja-lbl">Remanente bruto</span><span class="caja-val caja-big" id="cj-rem">—</span></div>
+              <div class="caja-row"><span class="caja-lbl">→ Al ahorro (<span id="cj-apct">0</span>%)</span><span class="caja-val" id="cj-amo" style="color:var(--ok)">—</span></div>
+              <div class="caja-row"><span class="caja-lbl">A distribuir</span><span class="caja-val caja-big" id="cj-dis">—</span></div>
+              <div class="caja-row"><span class="caja-lbl" id="cj-owner1-lbl">🧑 Dueño 1</span><span class="caja-val" id="cj-d1">—</span></div>
+              <div class="caja-row" id="row-cj-d2"><span class="caja-lbl" id="cj-owner2-lbl">🧑 Dueño 2</span><span class="caja-val" id="cj-d2">—</span></div>
+            </div>
+            <button type="button" class="btn btn-ok btn-full no-print" id="cj-apply" style="margin-top:14px;display:none" onclick="aplicarCierre()">💾 Enviar al fondo de ahorro</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── CONFIG ── -->
+    <section class="pg" id="pg-config">
+      <div class="sec-head"><h2 class="sec-title">Configuración</h2></div>
+      <div class="card" style="max-width:580px">
+        <div class="card-h"><span>🏢</span> Datos de la Empresa</div>
+        <div class="frow x1"><div class="field"><label>Nombre de la Empresa</label><input type="text" id="cfg-nom" placeholder="Estética Romina"></div></div>
+        <div class="frow x1"><div class="field"><label>Mensaje en Tickets</label><input type="text" id="cfg-tkt" placeholder="¡Gracias por tu preferencia!"></div></div>
+        <div class="frow">
+          <div class="field"><label>Nombre del Dueño 1</label><input type="text" id="cfg-own1" placeholder="Dueño 1"></div>
+          <div class="field"><label>Nombre del Dueño 2</label><input type="text" id="cfg-own2" placeholder="Dueño 2"></div>
+        </div>
+        <button class="btn btn-p" onclick="saveConfig()" style="margin-top:8px">💾 Guardar Configuración</button>
+      </div>
+      <div class="card" style="max-width:580px;margin-top:22px">
+        <div class="card-h"><span>📄</span> Logo en el reporte PDF (cierre)</div>
+        <p style="font-size:12.5px;color:var(--text2);margin-bottom:12px;line-height:1.45">Sube una imagen para que aparezca <strong>arriba a la derecha</strong> al imprimir el PDF de cierre. Se guarda <strong>solo en este navegador</strong> (no en la nube).</p>
+        <div class="frow" style="align-items:flex-end;flex-wrap:wrap;gap:12px">
+          <div class="field" style="flex:1;min-width:200px">
+            <label>Imagen del logo</label>
+            <input type="file" id="cfg-pdf-logo-file" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" />
+          </div>
+          <button type="button" class="btn btn-s" id="cfg-pdf-logo-clear" onclick="clearPdfLogo()" style="display:none">Quitar logo</button>
+        </div>
+        <div style="margin-top:14px;border:1px dashed var(--border);border-radius:var(--r-sm);padding:14px;text-align:center;background:var(--bg2);min-height:96px;display:flex;align-items:center;justify-content:center">
+          <img id="cfg-pdf-logo-preview" alt="Vista previa del logo" style="display:none;max-height:100px;max-width:280px;object-fit:contain" />
+          <span id="cfg-pdf-logo-placeholder" style="font-size:12.5px;color:var(--text2)">Sin logo — elige una imagen</span>
+        </div>
+      </div>
+      <div class="card" style="max-width:800px;margin-top:22px">
+        <div class="card-h"><span>🕐</span> Turnos de trabajo</div>
+        <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45">Define turnos dinámicos (Matutino, Vespertino, Día completo, Fin de semana, etc.). Se guardan en <code style="font-size:11px">config/turnos</code> en Firestore. Luego asigna el <strong>horario semanal</strong> por empleada (día a día o descanso); al elegir fecha y empleada en ventas, el turno se sugiere automáticamente y siempre puedes cambiarlo.</p>
+        <button type="button" class="btn btn-p btn-sm" onclick="openTurnoModal()">➕ Nuevo turno</button>
+        <div class="tbl-wrap" style="margin-top:14px">
+          <table>
+            <thead><tr><th>Nombre</th><th>Descripción</th><th>Orden</th><th>ID</th><th>Acciones</th></tr></thead>
+            <tbody id="tb-cfg-turnos"><tr><td colspan="5" style="text-align:center;color:var(--text2)">Cargando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ── MODAL CATÁLOGO ── -->
+<div class="mo-bg" id="mo-cat">
+  <div class="mo">
+    <div class="mo-head"><h3 class="mo-title" id="mo-cat-ttl">Nuevo Servicio</h3><button class="mo-x" onclick="closeMo('mo-cat')">✕</button></div>
+    <div class="al al-info" style="margin-bottom:16px">El precio y porcentaje aquí definidos son los <strong>valores por defecto</strong>. Siempre podrás editarlos al momento de registrar una venta.</div>
+    <div class="frow x1"><div class="field"><label>Nombre del Servicio</label><input type="text" id="cat-nom" placeholder="Ej: Corte Clásico, Tinte Completo…"></div></div>
+    <div class="frow">
+      <div class="field"><label>Precio Base ($)</label><input type="number" id="cat-precio" placeholder="0.00" step="0.01"></div>
+      <div class="field"><label>% Comisión por Defecto</label><input type="number" id="cat-com" placeholder="Ej: 25" min="0" max="100"></div>
+    </div>
+    <div class="frow x1"><div class="field"><label>Categoría (opcional)</label><input type="text" id="cat-cat" placeholder="Ej: Cabello, Uñas, Tratamiento…"></div></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-s" onclick="closeMo('mo-cat')">Cancelar</button>
+      <button class="btn btn-p" onclick="saveCat()">💾 Guardar Servicio</button>
+    </div>
+    <input type="hidden" id="cat-id">
+  </div>
+</div>
+
+<!-- ── MODAL EMPLEADA ── -->
+<div class="mo-bg" id="mo-emp">
+  <div class="mo">
+    <div class="mo-head"><h3 class="mo-title" id="mo-emp-ttl">Nueva Empleada</h3><button class="mo-x" onclick="closeMo('mo-emp')">✕</button></div>
+    <div class="frow x1"><div class="field"><label>Nombre Completo</label><input type="text" id="em-nom" placeholder="Nombre completo"></div></div>
+    <div class="frow">
+      <div class="field"><label>Rol</label><select id="em-rol"><option value="Estilista">Estilista</option><option value="Manicurista">Manicurista</option><option value="Auxiliar">Auxiliar</option><option value="Administrador">Administrador</option></select></div>
+      <div class="field"><label>% Comisión Base</label><input type="number" id="em-com" placeholder="30" min="0" max="100"></div>
+    </div>
+    <div class="frow x1">
+      <div class="field">
+        <label>Horario semanal (por día)</label>
+        <div class="emp-hs-grid" style="display:grid;grid-template-columns:minmax(92px,110px) 1fr;gap:8px 12px;align-items:center;margin-top:8px;max-height:min(52vh,340px);overflow-y:auto;padding-right:4px">
+          <span style="font-size:12.5px;color:var(--text2)">Lunes</span><select id="em-hs-lunes" class="inp"></select>
+          <span style="font-size:12.5px;color:var(--text2)">Martes</span><select id="em-hs-martes" class="inp"></select>
+          <span style="font-size:12.5px;color:var(--text2)">Miércoles</span><select id="em-hs-miercoles" class="inp"></select>
+          <span style="font-size:12.5px;color:var(--text2)">Jueves</span><select id="em-hs-jueves" class="inp"></select>
+          <span style="font-size:12.5px;color:var(--text2)">Viernes</span><select id="em-hs-viernes" class="inp"></select>
+          <span style="font-size:12.5px;color:var(--text2)">Sábado</span><select id="em-hs-sabado" class="inp"></select>
+          <span style="font-size:12.5px;color:var(--text2)">Domingo</span><select id="em-hs-domingo" class="inp"></select>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-s" onclick="closeMo('mo-emp')">Cancelar</button>
+      <button class="btn btn-p" onclick="saveEmp()">💾 Guardar</button>
+    </div>
+    <input type="hidden" id="em-id">
+  </div>
+</div>
+
+<!-- ── MODAL AHORRO ── -->
+<div class="mo-bg" id="mo-aho">
+  <div class="mo">
+    <div class="mo-head"><h3 class="mo-title" id="mo-aho-ttl">Ingresar Ahorro</h3><button class="mo-x" onclick="closeMo('mo-aho')">✕</button></div>
+    <div class="frow x1"><div class="field"><label>Monto ($)</label><input type="number" id="ah-monto" placeholder="0.00" step="0.01"></div></div>
+    <div class="frow x1"><div class="field"><label>Motivo / Descripción</label><input type="text" id="ah-motivo" placeholder="Descripción del movimiento…"></div></div>
+    <input type="hidden" id="ah-tipo">
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-s" onclick="closeMo('mo-aho')">Cancelar</button>
+      <button class="btn btn-p" id="ah-btn" onclick="saveAhorro()">💾 Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL DETALLE SEMANAL (REPORTES) ── -->
+<div class="mo-bg" id="mo-rep-sem">
+  <div class="mo mo-lg mo-xl">
+    <div class="mo-head">
+      <div>
+        <h3 class="mo-title" id="mo-rep-sem-ttl">Detalle de Ventas</h3>
+        <p id="mo-rep-sem-sub" style="font-size:12.5px;color:var(--text2);margin-top:4px;font-weight:400"></p>
+      </div>
+      <button type="button" class="mo-x" onclick="closeMo('mo-rep-sem')">✕</button>
+    </div>
+    <div class="frow x3" style="margin-bottom:16px">
+      <div class="field"><label>Filtrar por empleada</label><select id="rep-sem-f-emp" onchange="renderDetalleSemanaTabla()"><option value="">Todas las empleadas</option></select></div>
+      <div class="field"><label>Filtrar por turno</label><select id="rep-sem-f-turno" onchange="renderDetalleSemanaTabla()"><option value="">Todos los turnos</option></select></div>
+      <div class="field" style="justify-content:flex-end;display:flex;align-items:flex-end"><button type="button" class="btn btn-s btn-sm" onclick="resetRepSemFiltros()">↺ Limpiar filtros</button></div>
+    </div>
+    <div class="tbl-wrap" style="max-height:min(62vh,560px);overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm)">
+      <table>
+        <thead><tr><th>Fecha</th><th>Empleada</th><th>Turno</th><th>Servicio</th><th>Monto total</th><th>Comisión</th></tr></thead>
+        <tbody id="tb-rep-sem-det"></tbody>
+      </table>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-top:12px">Incluye ventas por servicio y registros <span class="bdg bdg-info">histórico diario</span>. Use la gráfica o la tabla de semanas en Reportes para abrir <strong>Administrar Datos</strong> filtrado por semana.</p>
+  </div>
+</div>
+
+<!-- ── MODAL EDITAR HISTÓRICO DIARIO ── -->
+<div class="mo-bg" id="mo-admin-hist">
+  <div class="mo">
+    <div class="mo-head"><h3 class="mo-title">Editar resumen histórico</h3><button type="button" class="mo-x" onclick="closeMo('mo-admin-hist')">✕</button></div>
+    <input type="hidden" id="adm-h-id">
+    <p class="adm-modal-kicker">Primera cifra = parte estética (utilidad); segunda = comisión. Al guardar, venta bruta = suma de ambas (mismo criterio que el registro histórico nuevo).</p>
+    <div class="frow x1">
+      <div class="field"><label>Fecha del registro</label><input type="text" id="adm-h-fecha-lbl" readonly style="background:var(--bg)"></div>
+    </div>
+    <div class="frow">
+      <div class="field"><label>Total generado a la estética ($)</label><input type="number" id="adm-h-monto" step="0.01" min="0" oninput="adminRecalcHistPreview()"></div>
+      <div class="field"><label>Comisión empleada ($)</label><input type="number" id="adm-h-com" step="0.01" min="0" oninput="adminRecalcHistPreview()"></div>
+    </div>
+    <div class="frow">
+      <div class="field"><label>Utilidad negocio ($)</label><input type="text" id="adm-h-util" readonly style="background:var(--bg)"></div>
+      <div class="field"><label>Turno</label><select id="adm-h-turno"></select></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button type="button" class="btn btn-s" onclick="closeMo('mo-admin-hist')">Cancelar</button>
+      <button type="button" class="btn btn-p" onclick="saveAdminHist()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL EDITAR VENTA / CORTE LÍNEA ── -->
+<div class="mo-bg" id="mo-admin-venta">
+  <div class="mo">
+    <div class="mo-head"><h3 class="mo-title" id="adm-v-ttl">Editar venta</h3><button type="button" class="mo-x" onclick="closeMo('mo-admin-venta')">✕</button></div>
+    <input type="hidden" id="adm-v-id">
+    <input type="hidden" id="adm-v-cant" value="">
+    <div class="frow">
+      <div class="field"><label>Fecha</label><input type="date" id="adm-v-fecha" onchange="adminOnAdmVFechaOrEmpTurnoSync()"></div>
+      <div class="field"><label>% Comisión aplicada</label><input type="number" id="adm-v-pct" readonly style="background:var(--bg)"></div>
+    </div>
+    <div class="frow x1">
+      <div class="field"><label>Servicio</label><select id="adm-v-serv" onchange="adminOnAdmVServChange()"></select></div>
+    </div>
+    <div class="frow">
+      <div class="field"><label>Empleada</label><select id="adm-v-emp" onchange="adminOnAdmVEmpChange()"></select></div>
+      <div class="field">
+        <label>Turno</label><select id="adm-v-turno"></select>
+        <p id="adm-v-turno-descanso-hint" class="turno-descanso-hint" style="display:none" role="status"></p>
+      </div>
+    </div>
+    <div class="frow">
+      <div class="field"><label>Monto total ($)</label><input type="number" id="adm-v-monto" step="0.01" min="0" oninput="adminRecalcVentaMontos()"></div>
+      <div class="field"><label>Comisión ($)</label><input type="text" id="adm-v-com" readonly style="background:var(--bg)"></div>
+    </div>
+    <div class="frow x1">
+      <div class="field"><label>Utilidad negocio ($)</label><input type="text" id="adm-v-util" readonly style="background:var(--bg)"></div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);margin-top:4px">Al cambiar el servicio se cargan precio y % del catálogo; puede ajustar el monto y se recalculan comisión y utilidad.</p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button type="button" class="btn btn-s" onclick="closeMo('mo-admin-venta')">Cancelar</button>
+      <button type="button" class="btn btn-p" onclick="saveAdminVenta()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL TURNO ── -->
+<div class="mo-bg" id="mo-turno">
+  <div class="mo">
+    <div class="mo-head"><h3 class="mo-title" id="mo-turno-ttl">Nuevo turno de trabajo</h3><button type="button" class="mo-x" onclick="closeMo('mo-turno')">✕</button></div>
+    <div class="frow x1"><div class="field"><label>Nombre del turno</label><input type="text" id="turno-nombre" placeholder="Ej: Matutino, Vespertino, Día completo…"></div></div>
+    <div class="frow x1"><div class="field"><label>Descripción (opcional)</label><input type="text" id="turno-desc" placeholder="Ej: Lunes a viernes 9:00–15:00"></div></div>
+    <div class="frow x1"><div class="field"><label>Orden de lista</label><input type="number" id="turno-orden" value="0" step="1" min="0" title="Menor número aparece primero en los desplegables"></div></div>
+    <input type="hidden" id="turno-id">
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button type="button" class="btn btn-s" onclick="closeMo('mo-turno')">Cancelar</button>
+      <button type="button" class="btn btn-p" onclick="saveTurnoCfg()">💾 Guardar turno</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-host" aria-live="polite" aria-relevant="additions"></div>
+<script src="js/firebase-config.auto.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/ui-mobile.js"></script>
+<script src="js/turnos.js"></script>
+<script src="js/ventas.js"></script>
+<script src="js/admin-movimientos.js"></script>
+<script src="js/reportes.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="js/app.js"></script>
+<script src="js/historico-diario.js"></script>
+</body>
+</html>

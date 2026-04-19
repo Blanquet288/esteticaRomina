@@ -1,0 +1,10 @@
+# Variables de entorno (credenciales locales)
+.env
+.env.local
+.env.*.local
+
+# Generado desde .env — no subir a GitHub
+js/firebase-config.auto.js
+
+# Dependencias Node (script npm run config)
+node_modules/

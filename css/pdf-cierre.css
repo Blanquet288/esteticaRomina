@@ -1,0 +1,164 @@
+/**
+ * Plantilla PDF (html2pdf.js) — diseño minimalista: fondo blanco, serif en títulos, tablas limpias.
+ */
+.cj-pdf-host {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 794px;
+  background: white;
+  z-index: -1000;
+  opacity: 0.01;
+  pointer-events: none;
+}
+.cj-pdf-doc {
+  box-sizing: border-box;
+  width: 794px;
+  margin: 0;
+  padding: 40px;
+  background: #ffffff;
+  color: #222;
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.45;
+}
+.pdf-serif {
+  font-family: Georgia, 'Times New Roman', Times, serif;
+}
+.pdf-doc-header {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #000;
+}
+.pdf-kicker {
+  font-size: 8pt;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #666;
+  margin: 0 0 6px;
+}
+.pdf-doc-title {
+  font-size: 22pt;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #000;
+  letter-spacing: -0.02em;
+}
+.pdf-doc-sub {
+  font-size: 9.5pt;
+  color: #444;
+  margin: 0;
+}
+.pdf-sec {
+  margin-bottom: 18px;
+  break-inside: avoid;
+}
+.pdf-sec-title {
+  font-size: 11pt;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: #000;
+  border: none;
+  padding: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.pdf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  border: 1px solid #d6dae2;
+}
+.pdf-table th {
+  text-align: left;
+  padding: 8px 10px;
+  background: #f7f8fb;
+  color: #1f2430;
+  font-weight: 600;
+  font-size: 8.5pt;
+  border-bottom: 1px solid #d6dae2;
+}
+.pdf-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #e9ecf2;
+  vertical-align: top;
+}
+.pdf-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.pdf-td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pdf-td-nombre {
+  font-weight: 600;
+}
+.pdf-td-sub {
+  color: #555;
+  font-size: 9pt;
+}
+.pdf-td-empty {
+  padding: 12px;
+  color: #777;
+  text-align: center;
+}
+.pdf-edo-total td {
+  border-top: 2px solid #bcc4d3;
+  background: #f5f7fb;
+  padding-top: 10px;
+  font-size: 10.5pt;
+}
+.pdf-net-neg {
+  color: #a30029;
+}
+.pdf-note {
+  font-size: 9pt;
+  color: #555;
+  padding: 10px 0;
+  margin: 0;
+  border-left: 2px solid #000;
+  padding-left: 12px;
+}
+.pdf-dist-table td:first-child {
+  width: 70%;
+}
+.pdf-firma-intro {
+  font-size: 9pt;
+  color: #444;
+  margin: 0 0 16px;
+  max-width: 520px;
+}
+.pdf-firma-grid {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+  margin-top: 8px;
+}
+.pdf-firma-col {
+  display: table-cell;
+  width: 50%;
+  padding: 0 12px 0 0;
+  vertical-align: bottom;
+}
+.pdf-firma-col:last-child {
+  padding: 0 0 0 12px;
+}
+.pdf-firma-line {
+  border-bottom: 1px solid #000;
+  min-height: 36px;
+  margin-bottom: 6px;
+}
+.pdf-firma-lbl {
+  font-size: 9pt;
+  color: #333;
+  margin: 0;
+  text-align: center;
+}
+.pdf-footer {
+  margin-top: 24px;
+  padding-top: 10px;
+  border-top: 1px solid #ccc;
+  font-size: 8pt;
+  color: #666;
+  text-align: center;
+}

@@ -1,0 +1,11 @@
+{
+  "name": "estetica-romina",
+  "private": true,
+  "description": "Genera js/firebase-config.auto.js desde .env (no subir .env ni el .auto.js a Git).",
+  "scripts": {
+    "config": "node scripts/generate-firebase-config.cjs"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.7"
+  }
+}
