@@ -95,3 +95,47 @@ function ventaBrutaDesdeVenta(v) {
 function comisionDesdeVenta(v) {
   return Number(v && v.comisionMonto) || 0;
 }
+
+/** Catálogo / venta: `porcentaje` (legacy sin campo) o `monto_fijo`. */
+function normalizarTipoComisionServicio(raw) {
+  const s = String(raw || '').toLowerCase().trim();
+  if (s === 'monto_fijo' || s === 'montofijo' || s === 'fijo') return 'monto_fijo';
+  return 'porcentaje';
+}
+
+/**
+ * Comisión empleada según precio bruto de la línea y el valor guardado en catálogo (o editado en venta).
+ * Porcentaje: (monto * valor) / 100. Monto fijo: valor acotado al bruto (no mayor al total).
+ */
+function comisionMontoDesdePrecioYValor(montoBruto, valorComision, tipoComision) {
+  const m = Number(montoBruto) || 0;
+  const val = Number(valorComision) || 0;
+  if (normalizarTipoComisionServicio(tipoComision) === 'monto_fijo') {
+    const c = Math.max(0, val);
+    return Math.min(c, m);
+  }
+  return (m * val) / 100;
+}
+
+/** `comisionPct` en ventas: si es porcentaje, el % aplicado; si es fijo, % efectivo respecto al bruto (como histórico). */
+function comisionPctParaGuardarEnVenta(montoBruto, comisionMonto, tipoComision, valorSiPorcentaje) {
+  const m = Number(montoBruto) || 0;
+  const com = Number(comisionMonto) || 0;
+  if (normalizarTipoComisionServicio(tipoComision) === 'monto_fijo') return m > 0 ? Math.round((com / m) * 10000) / 100 : 0;
+  return Math.round((Number(valorSiPorcentaje) || 0) * 100) / 100;
+}
+
+function textoComisionCatalogoResumido(c) {
+  if (!c) return 'Comisión: —';
+  const t = normalizarTipoComisionServicio(c.tipoComision);
+  const v = Number(c.comisionDefecto) || 0;
+  if (t === 'monto_fijo') return 'Comisión: ' + $m(v);
+  return 'Comisión: ' + v + '%';
+}
+
+/** Celda “% / comisión” en historiales de venta: muestra % o monto fijo según `comisionTipo` guardado. */
+function etiquetaVentaHistorialComisionPct(v) {
+  if (!v) return '0%';
+  if (normalizarTipoComisionServicio(v.comisionTipo) === 'monto_fijo') return $m(comisionDesdeVenta(v));
+  return (parseFloat(v.comisionPct) || 0) + '%';
+}

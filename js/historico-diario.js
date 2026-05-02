@@ -32,6 +32,7 @@ async function saveHistoricoDiario() {
       idServicio: '',
       monto: bruto,
       comisionMonto: com,
+      comisionTipo: 'porcentaje',
       comisionPct: pct,
       utilidadNegocio: utilEst,
       montoEsBruto: true,

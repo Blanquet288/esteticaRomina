@@ -3,6 +3,10 @@
  */
 var adminDrillFilter = null;
 var adminMovEditId = null;
+/** Mapa `fecha:índice` → array de ventas del grupo (detalle modal). */
+var adminGrupoDetalleStore = {};
+/** Si la venta en edición trae `comisionTipo` en Firestore, se respeta hasta cambiar de servicio. */
+var adminVentaEditTipoOverride = null;
 
 function setAdminWeekDrilldown(monthKey, weekNum) {
   const mk = normalizeMonthYYYYMM(monthKey) || monthKey;
@@ -212,27 +216,156 @@ function adminToggleDay(btn) {
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-function renderAdminDayTableRows(dayMovs, esc) {
-  return dayMovs
-    .map((v) => {
-      const em = emps.find((e) => e.id === v.idEmpleado);
-      const tnom = v.turnoNombre || (typeof nombreTurnoPorId === 'function' ? nombreTurnoPorId(v.turnoId) : '') || '—';
-      const tipoTxt = adminTipoVentaLabel(v);
-      const tipoCls = adminTipoBadgeClass(tipoTxt);
-      const concepto = v.servicio || '—';
+function adminGroupKey(v) {
+  return `${v.idEmpleado || ''}\t${v.turnoId != null && v.turnoId !== '' ? String(v.turnoId) : ''}\t${String(v.turnoNombre || '')}`;
+}
+
+function adminGroupDayMovs(dayMovs) {
+  const map = new Map();
+  (dayMovs || []).forEach((v) => {
+    const k = adminGroupKey(v);
+    if (!map.has(k)) {
+      map.set(k, {
+        key: k,
+        idEmpleado: v.idEmpleado,
+        turnoId: v.turnoId,
+        turnoNombre: v.turnoNombre || (typeof nombreTurnoPorId === 'function' ? nombreTurnoPorId(v.turnoId) : '') || '—',
+        items: [],
+      });
+    }
+    map.get(k).items.push(v);
+  });
+  const groups = [...map.values()];
+  groups.forEach((g) => {
+    g.count = g.items.length;
+    g.totalBruto = g.items.reduce((s, x) => s + ventaBrutaDesdeVenta(x), 0);
+  });
+  groups.sort((a, b) => {
+    const na = (emps.find((e) => e.id === a.idEmpleado)?.nombre || '').localeCompare(emps.find((e) => e.id === b.idEmpleado)?.nombre || '', 'es');
+    if (na !== 0) return na;
+    return String(a.turnoNombre || '').localeCompare(String(b.turnoNombre || ''), 'es');
+  });
+  return groups;
+}
+
+function renderAdminDaySummaryRows(fecha, groups, esc) {
+  return groups
+    .map((g, idx) => {
+      adminGrupoDetalleStore[`${fecha}:${idx}`] = g.items;
+      const em = emps.find((e) => e.id === g.idEmpleado);
       return `<tr>
-        <td><span class="adm-badge adm-${tipoCls}">${esc(tipoTxt)}</span></td>
         <td>${esc(em?.nombre || '—')}</td>
-        <td>${esc(tnom)}</td>
+        <td>${esc(g.turnoNombre)}</td>
+        <td><strong>${g.count}</strong></td>
+        <td><strong>${$m(g.totalBruto)}</strong></td>
+        <td><button type="button" class="btn btn-s btn-sm" data-fecha="${esc(fecha)}" data-idx="${idx}" onclick="openAdminGrupoDetalleBtn(this)">Ver detalles</button></td>
+      </tr>`;
+    })
+    .join('');
+}
+
+function openAdminGrupoDetalleBtn(btn) {
+  if (!btn || !btn.dataset) return;
+  const fecha = btn.dataset.fecha;
+  const idx = parseInt(btn.dataset.idx, 10);
+  const items = adminGrupoDetalleStore[`${fecha}:${idx}`];
+  if (!items || !items.length) {
+    if (typeof showToast === 'function') showToast('bad', 'No hay líneas en este grupo.');
+    return;
+  }
+  const esc = typeof escapeRepHtml === 'function' ? escapeRepHtml : function (s) { return String(s || ''); };
+  const em = emps.find((e) => e.id === items[0].idEmpleado);
+  const tnom = items[0].turnoNombre || (typeof nombreTurnoPorId === 'function' ? nombreTurnoPorId(items[0].turnoId) : '') || '—';
+  const ttl = document.getElementById('adm-grupo-ttl');
+  const sub = document.getElementById('adm-grupo-sub');
+  if (ttl) ttl.textContent = 'Detalle de servicios';
+  if (sub) {
+    sub.textContent = `${em?.nombre || '—'} · ${tnom} · ${items.length} línea(s) · desglose precio, comisión empleada e ingreso estética por servicio.`;
+  }
+  const tb = document.getElementById('adm-grupo-det-tbody');
+  let sumBruto = 0;
+  let sumCom = 0;
+  let sumEst = 0;
+  items.forEach((v) => {
+    sumBruto += ventaBrutaDesdeVenta(v);
+    sumCom += comisionDesdeVenta(v);
+    sumEst += utilidadNegocioDesdeVenta(v);
+  });
+  if (typeof registerAdminThermalTicketContext === 'function') {
+    registerAdminThermalTicketContext({
+      fechaISO: (items[0].fecha || '').slice(0, 10),
+      empleadaNombre: em?.nombre || '—',
+      totalComisionEmpleada: sumCom,
+      turnoNombre: tnom,
+    });
+  }
+  if (tb) {
+    tb.innerHTML = items
+      .map((v) => {
+        const tipoTxt = adminTipoVentaLabel(v);
+        const tipoCls = adminTipoBadgeClass(tipoTxt);
+        const concepto = v.servicio || '—';
+        const bruto = ventaBrutaDesdeVenta(v);
+        const com = comisionDesdeVenta(v);
+        const est = utilidadNegocioDesdeVenta(v);
+        return `<tr>
+        <td><span class="adm-badge adm-${tipoCls}">${esc(tipoTxt)}</span></td>
         <td>${esc(concepto)}</td>
-        <td><strong>${$m(ventaBrutaDesdeVenta(v))}</strong></td>
+        <td class="adm-grupo-td-num"><strong>${$m(bruto)}</strong></td>
+        <td class="adm-grupo-td-num adm-grupo-td-num--emp">${$m(com)}</td>
+        <td class="adm-grupo-td-num adm-grupo-td-num--est">${$m(est)}</td>
         <td>
           <button type="button" class="btn btn-s btn-sm" data-doc-id="${v.id}" onclick="openAdminEdit(this.dataset.docId)">Editar</button>
           <button type="button" class="btn btn-bad btn-sm" data-doc-id="${v.id}" onclick="deleteAdminMov(this.dataset.docId)">Eliminar</button>
         </td>
       </tr>`;
-    })
-    .join('');
+      })
+      .join('');
+  }
+
+  const sumRoot = document.getElementById('adm-grupo-sum-root');
+  if (sumRoot) {
+    sumRoot.innerHTML =
+      '<div class="adm-grupo-sum-title">Resumen del turno</div>' +
+      '<div class="adm-grupo-sum-grid">' +
+      '<div><span class="adm-grupo-sum-lbl">Venta total del turno</span>' +
+      `<span class="adm-grupo-sum-val">${$m(sumBruto)}</span></div>` +
+      '<div><span class="adm-grupo-sum-lbl">Total a pagar (empleada)</span>' +
+      `<span class="adm-grupo-sum-val adm-grupo-sum-val--emp">${$m(sumCom)}</span></div>` +
+      '<div><span class="adm-grupo-sum-lbl">Ganancia neta (estética)</span>' +
+      `<span class="adm-grupo-sum-val adm-grupo-sum-val--est">${$m(sumEst)}</span></div>` +
+      '</div>';
+  }
+  openMo('mo-admin-grupo');
+}
+
+function getAdminVentaTipoActual() {
+  if (adminVentaEditTipoOverride) return normalizarTipoComisionServicio(adminVentaEditTipoOverride);
+  const sel = document.getElementById('adm-v-serv');
+  const opt = sel?.options?.[sel?.selectedIndex];
+  return opt && opt.value ? normalizarTipoComisionServicio(opt.dataset.tipoComision) : 'porcentaje';
+}
+
+function syncAdminVentaComisionUi() {
+  const tipo = getAdminVentaTipoActual();
+  const lbl = document.getElementById('adm-v-pct-lbl');
+  const inp = document.getElementById('adm-v-pct');
+  if (!lbl || !inp) return;
+  if (tipo === 'monto_fijo') {
+    lbl.textContent = 'Comisión fija aplicada ($)';
+    inp.removeAttribute('readonly');
+    inp.style.background = '';
+    inp.setAttribute('min', '0');
+    inp.setAttribute('step', '0.01');
+    inp.removeAttribute('max');
+  } else {
+    lbl.textContent = '% Comisión aplicada (desde catálogo)';
+    inp.setAttribute('readonly', 'readonly');
+    inp.style.background = 'var(--bg)';
+    inp.setAttribute('min', '0');
+    inp.setAttribute('max', '100');
+    inp.setAttribute('step', '0.01');
+  }
 }
 
 async function loadAdminMovimientos() {
@@ -246,6 +379,14 @@ async function loadAdminMovimientos() {
   const bannerTxt = document.getElementById('adm-drill-txt');
   const esc = typeof escapeRepHtml === 'function' ? escapeRepHtml : function (s) { return String(s || ''); };
   root.innerHTML = '<div class="adm-loading">Cargando…</div>';
+  if (typeof closeAdminGrupoDetalleModal === 'function') closeAdminGrupoDetalleModal();
+  else {
+    closeMo('mo-admin-grupo');
+    if (typeof registerAdminThermalTicketContext === 'function') registerAdminThermalTicketContext(null);
+  }
+  const sumClear = document.getElementById('adm-grupo-sum-root');
+  if (sumClear) sumClear.innerHTML = '';
+  adminGrupoDetalleStore = {};
   const trendsEl = document.getElementById('adm-trends-root');
   if (trendsEl) {
     trendsEl.hidden = true;
@@ -284,21 +425,22 @@ async function loadAdminMovimientos() {
         dayMovs.forEach((x) => (sum += ventaBrutaDesdeVenta(x)));
         const n = dayMovs.length;
         const cab = adminFormatFechaCab(fecha);
-        const rows = renderAdminDayTableRows(dayMovs, esc);
+        const groups = adminGroupDayMovs(dayMovs);
+        const rows = renderAdminDaySummaryRows(fecha, groups, esc);
         const badges = adminBadgesForFecha(fecha, bestFecha, worstFecha);
         return `<div class="adm-acc-item" data-fecha="${esc(fecha)}">
           <button type="button" class="adm-acc-head" aria-expanded="false" onclick="adminToggleDay(this)">
             <span class="adm-acc-chev" aria-hidden="true"></span>
             <span class="adm-acc-main">
               <span class="adm-acc-date">📅 ${esc(cab)}</span>
-              <span class="adm-acc-meta"><span class="adm-acc-count">${n} mov.</span><span class="adm-acc-sum">${$m(sum)}</span>${badges}</span>
+              <span class="adm-acc-meta"><span class="adm-acc-count">${n} mov. · ${groups.length} grupo(s)</span><span class="adm-acc-sum">${$m(sum)}</span>${badges}</span>
             </span>
           </button>
           <div class="adm-acc-panel">
             <div class="adm-acc-panel-inner">
-              <div class="tbl-wrap">
-                <table class="adm-inner-tbl">
-                  <thead><tr><th>Tipo</th><th>Empleada</th><th>Turno</th><th>Servicio / concepto</th><th>Monto</th><th>Acciones</th></tr></thead>
+              <div class="tbl-wrap adm-admin-day-tbl-wrap">
+                <table class="adm-inner-tbl adm-day-summary-tbl">
+                  <thead><tr><th>Empleada</th><th>Turno</th><th>Total servicios</th><th>Monto total acumulado</th><th></th></tr></thead>
                   <tbody>${rows}</tbody>
                 </table>
               </div>
@@ -316,6 +458,8 @@ async function loadAdminMovimientos() {
 
 function openAdminEdit(docId) {
   if (!docId) return;
+  if (typeof closeAdminGrupoDetalleModal === 'function') closeAdminGrupoDetalleModal();
+  else closeMo('mo-admin-grupo');
   adminMovEditId = docId;
   db.collection('ventas')
     .doc(docId)
@@ -384,6 +528,7 @@ async function saveAdminHist() {
     await db.collection('ventas').doc(id).update({
       monto: bruto,
       comisionMonto: com,
+      comisionTipo: 'porcentaje',
       comisionPct: pct,
       utilidadNegocio: utilEst,
       montoEsBruto: true,
@@ -410,22 +555,37 @@ function openAdminVentaModal(id, v) {
   loadCatSelect('adm-v-serv');
   const sel = document.getElementById('adm-v-serv');
   const sid = v.idServicio || '';
+  adminVentaEditTipoOverride =
+    v.comisionTipo != null && String(v.comisionTipo).trim() !== '' ? normalizarTipoComisionServicio(v.comisionTipo) : null;
+  const tipoCat = normalizarTipoComisionServicio(cats.find((c) => c.id === sid)?.tipoComision);
   if (sid && !cats.find((c) => c.id === sid)) {
     const o = document.createElement('option');
     o.value = sid;
     o.textContent = (v.servicio || '(Servicio)') + ' — catálogo';
     o.dataset.precio = String(v.monto != null ? v.monto : 0);
-    o.dataset.com = String(v.comisionPct != null ? v.comisionPct : 0);
+    const tipoOrigen =
+      v.comisionTipo != null && String(v.comisionTipo).trim() !== '' ? normalizarTipoComisionServicio(v.comisionTipo) : tipoCat;
+    o.dataset.tipoComision = tipoOrigen;
+    o.dataset.com =
+      tipoOrigen === 'monto_fijo'
+        ? String(Number(v.comisionMonto) || 0)
+        : String(v.comisionPct != null ? v.comisionPct : 0);
     o.dataset.nombre = v.servicio || '';
     sel.appendChild(o);
   }
   if (sid) sel.value = sid;
   fillTurnoSelect('adm-v-turno', v.turnoId || '');
   document.getElementById('adm-v-monto').value = v.monto != null ? String(v.monto) : '';
-  const pct = parseFloat(v.comisionPct) || 0;
-  document.getElementById('adm-v-pct').value = String(pct);
+  const tipoIni = getAdminVentaTipoActual();
+  if (tipoIni === 'monto_fijo') {
+    const cm = Number(v.comisionMonto);
+    document.getElementById('adm-v-pct').value = Number.isFinite(cm) ? String(cm) : '0';
+  } else {
+    document.getElementById('adm-v-pct').value = String(parseFloat(v.comisionPct) || 0);
+  }
   const cantEl = document.getElementById('adm-v-cant');
   if (cantEl) cantEl.value = v.cantidad != null && v.cantidad !== '' ? String(v.cantidad) : '';
+  syncAdminVentaComisionUi();
   adminRecalcVentaMontos();
   openMo('mo-admin-venta');
 }
@@ -433,12 +593,14 @@ function openAdminVentaModal(id, v) {
 function adminOnAdmVServChange() {
   const sel = document.getElementById('adm-v-serv');
   if (!sel || !sel.value) return;
+  adminVentaEditTipoOverride = null;
   const opt = sel.options[sel.selectedIndex];
   if (!opt) return;
   const precio = parseFloat(opt.dataset.precio || 0) || 0;
-  const comPct = parseFloat(opt.dataset.com || 0) || 0;
+  const comVal = parseFloat(opt.dataset.com || 0) || 0;
   document.getElementById('adm-v-monto').value = precio > 0 ? precio.toFixed(2) : document.getElementById('adm-v-monto').value;
-  document.getElementById('adm-v-pct').value = String(comPct);
+  document.getElementById('adm-v-pct').value = String(comVal);
+  syncAdminVentaComisionUi();
   adminRecalcVentaMontos();
 }
 
@@ -457,8 +619,9 @@ function adminOnAdmVEmpChange() {
 
 function adminRecalcVentaMontos() {
   const monto = parseFloat(document.getElementById('adm-v-monto').value) || 0;
-  const pct = parseFloat(document.getElementById('adm-v-pct').value) || 0;
-  const comisionMonto = (monto * pct) / 100;
+  const val = parseFloat(document.getElementById('adm-v-pct').value) || 0;
+  const tipo = getAdminVentaTipoActual();
+  const comisionMonto = comisionMontoDesdePrecioYValor(monto, val, tipo);
   const utilidadNegocio = monto - comisionMonto;
   const cEl = document.getElementById('adm-v-com');
   const uEl = document.getElementById('adm-v-util');
@@ -478,7 +641,8 @@ async function saveAdminVenta() {
     '';
   const eid = document.getElementById('adm-v-emp').value;
   const monto = parseFloat(document.getElementById('adm-v-monto').value);
-  const pct = parseFloat(document.getElementById('adm-v-pct').value) || 0;
+  const valCom = parseFloat(document.getElementById('adm-v-pct').value) || 0;
+  const tipo = getAdminVentaTipoActual();
   if (!id || !fecha || !catId || !eid) {
     showToast('bad', '❌ Completa fecha, servicio y empleada.');
     return;
@@ -491,8 +655,9 @@ async function saveAdminVenta() {
     showToast('bad', '❌ Selecciona un turno.');
     return;
   }
-  const comisionMonto = (monto * pct) / 100;
+  const comisionMonto = comisionMontoDesdePrecioYValor(monto, valCom, tipo);
   const utilidadNegocio = monto - comisionMonto;
+  const pct = comisionPctParaGuardarEnVenta(monto, comisionMonto, tipo, valCom);
   const turno = readTurnoFromSelect('adm-v-turno');
   const cantStr = document.getElementById('adm-v-cant')?.value;
   const cantNum = cantStr ? parseFloat(cantStr) : NaN;
@@ -502,6 +667,7 @@ async function saveAdminVenta() {
     servicio: servNom,
     idServicio: catId,
     monto,
+    comisionTipo: tipo,
     comisionPct: pct,
     comisionMonto,
     utilidadNegocio,
@@ -526,6 +692,8 @@ async function deleteAdminMov(docId) {
   if (!docId) return;
   if (!confirm('¿Eliminar este movimiento de forma permanente? Esta acción no se puede deshacer.')) return;
   try {
+    if (typeof closeAdminGrupoDetalleModal === 'function') closeAdminGrupoDetalleModal();
+    else closeMo('mo-admin-grupo');
     await db.collection('ventas').doc(docId).delete();
     await loadAdminMovimientos();
     if (typeof curSec !== 'undefined' && curSec === 'cierre' && typeof loadCierreResumenMes === 'function') await loadCierreResumenMes();

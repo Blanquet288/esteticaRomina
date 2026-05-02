@@ -173,7 +173,7 @@
           </div>
           <div class="frow">
             <div class="field"><label>Precio ($) <small style="color:var(--text3)">(editable)</small></label><input type="number" id="v-monto" placeholder="0.00" step="0.01" oninput="calcCom()"></div>
-            <div class="field"><label>% Comisión <small style="color:var(--text3)">(editable)</small></label><input type="number" id="v-cpct" placeholder="0" step="1" oninput="calcCom()"></div>
+            <div class="field"><label id="v-cpct-lbl">% Comisión <small style="color:var(--text3)">(editable)</small></label><input type="number" id="v-cpct" placeholder="0" step="1" oninput="calcCom()"></div>
           </div>
           <div class="frow">
             <div class="field"><label>Comisión Empleada ($)</label><input type="number" id="v-cmonto" readonly></div>
@@ -198,7 +198,7 @@
         </div>
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>Fecha</th><th>Empleada</th><th>Turno</th><th>Servicio</th><th>Monto</th><th>Comisión</th><th>%</th><th>Utilidad</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Empleada</th><th>Turno</th><th>Servicio</th><th>Monto</th><th>Comisión</th><th id="v-hist-th-pct">% / fijo</th><th>Utilidad</th></tr></thead>
             <tbody id="tb-v-hist"></tbody>
           </table>
         </div>
@@ -235,7 +235,7 @@
                 <th style="min-width:180px">Servicio</th>
                 <th style="min-width:90px">Cantidad</th>
                 <th style="min-width:110px">Precio Unit. ($)</th>
-                <th style="min-width:80px">Com. (%)</th>
+                <th style="min-width:100px" id="bk-th-com-valor" title="Porcentaje o monto fijo según el servicio">Com. % / $</th>
                 <th style="min-width:110px">Subtotal ($)</th>
                 <th style="min-width:110px">Comisión ($)</th>
                 <th style="min-width:40px"></th>
@@ -624,6 +624,11 @@
         <button class="btn btn-p" onclick="saveConfig()" style="margin-top:8px">💾 Guardar Configuración</button>
       </div>
       <div class="card" style="max-width:580px;margin-top:22px">
+        <div class="card-h"><span>🧾</span> Impresora térmica (80 mm)</div>
+        <p style="font-size:12.5px;color:var(--text2);margin-bottom:12px;line-height:1.45">Longitud del rollo y giro opcional se guardan <strong>solo en este navegador</strong>. El ticket de corte usa el PDF del detalle de turno.</p>
+        <button type="button" class="btn btn-s" onclick="openTicketThermalSettingsModal()">⚙️ Ajustes de impresión</button>
+      </div>
+      <div class="card" style="max-width:580px;margin-top:22px">
         <div class="card-h"><span>📄</span> Logo en el reporte PDF (cierre)</div>
         <p style="font-size:12.5px;color:var(--text2);margin-bottom:12px;line-height:1.45">Sube una imagen para que aparezca <strong>arriba a la derecha</strong> al imprimir el PDF de cierre. Se guarda <strong>solo en este navegador</strong> (no en la nube).</p>
         <div class="frow" style="align-items:flex-end;flex-wrap:wrap;gap:12px">
@@ -657,12 +662,13 @@
 <div class="mo-bg" id="mo-cat">
   <div class="mo">
     <div class="mo-head"><h3 class="mo-title" id="mo-cat-ttl">Nuevo Servicio</h3><button class="mo-x" onclick="closeMo('mo-cat')">✕</button></div>
-    <div class="al al-info" style="margin-bottom:16px">El precio y porcentaje aquí definidos son los <strong>valores por defecto</strong>. Siempre podrás editarlos al momento de registrar una venta.</div>
+    <div class="al al-info" style="margin-bottom:16px">El precio y la comisión aquí definidos son los <strong>valores por defecto</strong>. Siempre podrás editarlos al momento de registrar una venta.</div>
     <div class="frow x1"><div class="field"><label>Nombre del Servicio</label><input type="text" id="cat-nom" placeholder="Ej: Corte Clásico, Tinte Completo…"></div></div>
     <div class="frow">
+      <div class="field"><label>Tipo de comisión por defecto</label><select id="cat-tipo-comision" onchange="syncCatComisionUi()"><option value="porcentaje">% Porcentaje</option><option value="monto_fijo">$ Monto fijo</option></select></div>
       <div class="field"><label>Precio Base ($)</label><input type="number" id="cat-precio" placeholder="0.00" step="0.01"></div>
-      <div class="field"><label>% Comisión por Defecto</label><input type="number" id="cat-com" placeholder="Ej: 25" min="0" max="100"></div>
     </div>
+    <div class="frow x1"><div class="field"><label id="cat-com-lbl">Valor comisión (%)</label><input type="number" id="cat-com" placeholder="Ej: 25" min="0" step="0.01"></div></div>
     <div class="frow x1"><div class="field"><label>Categoría (opcional)</label><input type="text" id="cat-cat" placeholder="Ej: Cabello, Uñas, Tratamiento…"></div></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
       <button class="btn btn-s" onclick="closeMo('mo-cat')">Cancelar</button>
@@ -774,7 +780,7 @@
     <input type="hidden" id="adm-v-cant" value="">
     <div class="frow">
       <div class="field"><label>Fecha</label><input type="date" id="adm-v-fecha" onchange="adminOnAdmVFechaOrEmpTurnoSync()"></div>
-      <div class="field"><label>% Comisión aplicada</label><input type="number" id="adm-v-pct" readonly style="background:var(--bg)"></div>
+      <div class="field"><label id="adm-v-pct-lbl">% Comisión aplicada</label><input type="number" id="adm-v-pct" readonly style="background:var(--bg)"></div>
     </div>
     <div class="frow x1">
       <div class="field"><label>Servicio</label><select id="adm-v-serv" onchange="adminOnAdmVServChange()"></select></div>
@@ -797,6 +803,68 @@
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
       <button type="button" class="btn btn-s" onclick="closeMo('mo-admin-venta')">Cancelar</button>
       <button type="button" class="btn btn-p" onclick="saveAdminVenta()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL DETALLE GRUPO (Administrar Datos) — layout flex + scroll (responsive) ── -->
+<div class="mo-bg" id="mo-admin-grupo">
+  <div class="mo mo-lg mo-admin-grupo-sheet">
+    <div class="mo-head mo-admin-grupo-head">
+      <h3 class="mo-title" id="adm-grupo-ttl">Detalle por empleada y turno</h3>
+      <button type="button" class="mo-x" onclick="closeAdminGrupoDetalleModal()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="mo-admin-grupo-scroll">
+      <p id="adm-grupo-sub" class="adm-modal-kicker adm-grupo-kicker"></p>
+      <div class="adm-grupo-tbl-outer">
+        <table class="adm-inner-tbl adm-grupo-det-tbl">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Servicio / concepto</th>
+              <th class="adm-grupo-th-num">Precio servicio</th>
+              <th class="adm-grupo-th-num">Comisión empleada</th>
+              <th class="adm-grupo-th-num">Ingreso estética</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="adm-grupo-det-tbody"></tbody>
+        </table>
+      </div>
+      <div id="adm-grupo-sum-root" class="adm-grupo-sum-root" aria-live="polite"></div>
+    </div>
+    <div class="mo-admin-grupo-footer mo-admin-grupo-footer--actions">
+      <button type="button" class="btn btn-s" onclick="openTicketThermalSettingsModal()" title="Longitud del rollo (cm) y giro">⚙️ Ajustes</button>
+      <span class="mo-admin-grupo-footer-spacer" aria-hidden="true"></span>
+      <button type="button" class="btn btn-p" onclick="printAdminGrupoThermalTicket()">🖨️ Imprimir ticket</button>
+      <button type="button" class="btn btn-s" onclick="closeAdminGrupoDetalleModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL AJUSTES TICKET TÉRMICO ── -->
+<div class="mo-bg" id="mo-ticket-thermal">
+  <div class="mo" style="max-width:440px">
+    <div class="mo-head">
+      <h3 class="mo-title">Ajustes — ticket térmico 80 mm</h3>
+      <button type="button" class="mo-x" onclick="closeMo('mo-ticket-thermal')" aria-label="Cerrar">✕</button>
+    </div>
+    <p class="adm-modal-kicker" style="margin-bottom:14px">El PDF usa ancho fijo de 80 mm y la altura del papel según la longitud del rollo (en centímetros).</p>
+    <div class="frow x1">
+      <div class="field">
+        <label>Longitud del ticket (cm)</label>
+        <input type="number" id="tkt-roll-cm" min="5" max="50" step="0.1" value="15.5" title="Entre 5 y 50 cm">
+      </div>
+    </div>
+    <div class="frow x1" style="margin-top:12px">
+      <div class="field">
+        <label>Giro (opcional)</label>
+        <input type="text" id="tkt-giro" maxlength="100" placeholder="Ej: SERVICIOS DE BELLEZA" autocomplete="off">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap">
+      <button type="button" class="btn btn-s" onclick="closeMo('mo-ticket-thermal')">Cancelar</button>
+      <button type="button" class="btn btn-p" onclick="saveTicketThermalSettings()">💾 Guardar</button>
     </div>
   </div>
 </div>
@@ -824,6 +892,7 @@
 <script defer src="js/utils.js"></script>
 <script defer src="js/ui-mobile.js"></script>
 <script defer src="js/turnos.js"></script>
+<script defer src="js/ticket-thermal.js"></script>
 <script defer src="js/ventas.js"></script>
 <script defer src="js/admin-movimientos.js"></script>
 <script defer src="js/reportes.js"></script>

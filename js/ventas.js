@@ -1,16 +1,39 @@
 /* Venta rápida y corte masivo (bulk) */
+function syncVentaRapidaComisionUi() {
+  const sel = document.getElementById('v-serv-sel');
+  const lbl = document.getElementById('v-cpct-lbl');
+  const inp = document.getElementById('v-cpct');
+  if (!lbl || !inp) return;
+  const opt = sel?.options?.[sel?.selectedIndex];
+  const tipo = opt && opt.value ? normalizarTipoComisionServicio(opt.dataset.tipoComision) : 'porcentaje';
+  if (tipo === 'monto_fijo') {
+    lbl.innerHTML = 'Comisión fija ($) <small style="color:var(--text3)">(editable)</small>';
+    inp.removeAttribute('max');
+    inp.setAttribute('min', '0');
+    inp.setAttribute('step', '0.01');
+  } else {
+    lbl.innerHTML = '% Comisión <small style="color:var(--text3)">(editable)</small>';
+    inp.setAttribute('min', '0');
+    inp.setAttribute('max', '100');
+    inp.setAttribute('step', '1');
+  }
+}
 function onVentaServChange() {
   const sel = document.getElementById('v-serv-sel');
   const opt = sel.options[sel.selectedIndex];
   if (!opt || !opt.value) return;
   document.getElementById('v-monto').value = parseFloat(opt.dataset.precio || 0).toFixed(2);
   document.getElementById('v-cpct').value = opt.dataset.com || 0;
+  syncVentaRapidaComisionUi();
   calcCom();
 }
 function calcCom() {
   const m = parseFloat(document.getElementById('v-monto').value) || 0;
-  const p = parseFloat(document.getElementById('v-cpct').value) || 0;
-  const com = (m * p) / 100;
+  const sel = document.getElementById('v-serv-sel');
+  const opt = sel?.options?.[sel?.selectedIndex];
+  const tipo = opt && opt.value ? normalizarTipoComisionServicio(opt.dataset.tipoComision) : 'porcentaje';
+  const val = parseFloat(document.getElementById('v-cpct').value) || 0;
+  const com = comisionMontoDesdePrecioYValor(m, val, tipo);
   document.getElementById('v-cmonto').value = com.toFixed(2);
   document.getElementById('v-util').value = (m - com).toFixed(2);
 }
@@ -19,11 +42,14 @@ async function regVenta() {
   const eid = document.getElementById('v-emp').value;
   const servSel = document.getElementById('v-serv-sel');
   const catId = servSel.value;
-  const servNom = servSel.options[servSel.selectedIndex]?.dataset.nombre || '';
+  const opt = servSel.options[servSel.selectedIndex];
+  const servNom = opt?.dataset?.nombre || '';
+  const tipoComision = opt ? normalizarTipoComisionServicio(opt.dataset.tipoComision) : 'porcentaje';
+  const valorCom = parseFloat(document.getElementById('v-cpct').value) || 0;
   const monto = parseFloat(document.getElementById('v-monto').value);
-  const pct = parseFloat(document.getElementById('v-cpct').value) || 0;
-  const comM = parseFloat(document.getElementById('v-cmonto').value) || 0;
-  const util = parseFloat(document.getElementById('v-util').value) || 0;
+  const comM = comisionMontoDesdePrecioYValor(monto, valorCom, tipoComision);
+  const pct = comisionPctParaGuardarEnVenta(monto, comM, tipoComision, valorCom);
+  const util = Math.round((monto - comM) * 100) / 100;
   if (!fecha || !eid || !catId || !monto) {
     showToast('bad', '❌ Completa todos los campos, incluye el servicio.');
     return;
@@ -41,6 +67,7 @@ async function regVenta() {
       servicio: servNom,
       idServicio: catId,
       monto,
+      comisionTipo: tipoComision,
       comisionPct: pct,
       comisionMonto: comM,
       utilidadNegocio: util,
@@ -117,7 +144,7 @@ async function loadVHist() {
         <td>${v.fecha}</td><td>${em?.nombre || '—'}</td><td>${tnom}</td><td>${esHist ? '<span class="bdg bdg-info" style="margin-right:6px">Día</span>' : ''}${v.servicio || '—'}</td>
         <td><strong>${$m(ventaBrutaDesdeVenta(v))}</strong></td>
         <td style="color:var(--warn)">${$m(comisionDesdeVenta(v))}</td>
-        <td><span class="bdg bdg-info">${v.comisionPct || 0}%</span></td>
+        <td><span class="bdg bdg-info">${typeof etiquetaVentaHistorialComisionPct === 'function' ? etiquetaVentaHistorialComisionPct(v) : (v.comisionPct || 0) + '%'}</span></td>
         <td style="color:var(--ok)">${$m(utilidadNegocioDesdeVenta(v))}</td>
       </tr>`;
       })
@@ -142,7 +169,7 @@ function buildCatOptions(selectedId) {
     cats
       .map(
         (c) =>
-          `<option value="${c.id}" data-precio="${c.precioBase || 0}" data-com="${c.comisionDefecto || 0}" data-nombre="${c.nombre}" ${c.id === selectedId ? 'selected' : ''}>${c.nombre}${c.categoria ? ' (' + c.categoria + ')' : ''}</option>`
+          `<option value="${c.id}" data-precio="${c.precioBase || 0}" data-com="${c.comisionDefecto || 0}" data-tipo-comision="${normalizarTipoComisionServicio(c.tipoComision)}" data-nombre="${c.nombre}" ${c.id === selectedId ? 'selected' : ''}>${c.nombre}${c.categoria ? ' (' + c.categoria + ')' : ''}</option>`
       )
       .join('')
   );
@@ -150,7 +177,7 @@ function buildCatOptions(selectedId) {
 
 function addBulkRow() {
   const id = Date.now();
-  bulkRows.push({ id, catId: '', nombre: '', cantidad: 1, precio: 0, comPct: 0, subtotal: 0, comMonto: 0 });
+  bulkRows.push({ id, catId: '', nombre: '', cantidad: 1, precio: 0, comPct: 0, comTipo: 'porcentaje', subtotal: 0, comMonto: 0 });
   renderBulkRows();
 }
 
@@ -186,6 +213,7 @@ function onBulkServChange(id, sel) {
   r.nombre = opt.dataset.nombre || '';
   r.precio = parseFloat(opt.dataset.precio || 0);
   r.comPct = parseFloat(opt.dataset.com || 0);
+  r.comTipo = normalizarTipoComisionServicio(opt.dataset.tipoComision);
   calcBulkRow(r);
   const tr = document.getElementById(`brow-${id}`);
   tr.querySelectorAll('input')[1].value = r.precio.toFixed(2);
@@ -221,7 +249,7 @@ function onBulkComChange(id, inp) {
 
 function calcBulkRow(r) {
   r.subtotal = r.cantidad * r.precio;
-  r.comMonto = (r.subtotal * r.comPct) / 100;
+  r.comMonto = comisionMontoDesdePrecioYValor(r.subtotal, r.comPct, r.comTipo || 'porcentaje');
 }
 function refreshBulkReadonly(id, r) {
   const tr = document.getElementById(`brow-${id}`);
@@ -282,6 +310,8 @@ async function saveBulk() {
   const batch = db.batch();
   validRows.forEach((r) => {
     const ref = db.collection('ventas').doc();
+    const tipoCom = normalizarTipoComisionServicio(r.comTipo);
+    const pct = comisionPctParaGuardarEnVenta(r.subtotal, r.comMonto, tipoCom, r.comPct);
     batch.set(ref, {
       fecha,
       idEmpleado: eid,
@@ -289,7 +319,8 @@ async function saveBulk() {
       idServicio: r.catId,
       cantidad: r.cantidad,
       monto: r.subtotal,
-      comisionPct: r.comPct,
+      comisionTipo: tipoCom,
+      comisionPct: pct,
       comisionMonto: r.comMonto,
       utilidadNegocio: r.subtotal - r.comMonto,
       turnoId: turno.turnoId,

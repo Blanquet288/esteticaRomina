@@ -469,7 +469,7 @@ tfoot td{border-top:2px solid var(--border);padding:11px 15px;color:var(--text)}
 .adm-loading,.adm-empty{text-align:center;padding:36px 16px;color:var(--text2);font-size:14px}
 .adm-empty-err{color:var(--bad)}
 .adm-acc-item{border:1px solid var(--border);border-radius:var(--r-sm);background:var(--card);overflow:hidden;box-shadow:var(--shadow)}
-.adm-acc-head{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:none;background:var(--bg);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:left;transition:background .25s ease,color .2s ease}
+.adm-acc-head{display:flex;align-items:center;gap:14px;width:100%;min-width:0;padding:14px 16px;border:none;background:var(--bg);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:left;transition:background .25s ease,color .2s ease}
 .adm-acc-head:hover{background:var(--accent-lt)}
 .adm-acc-item.open .adm-acc-head{background:linear-gradient(90deg,rgba(201,147,106,.14),transparent)}
 .adm-acc-chev{flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--card);border:1px solid var(--border);transition:transform .35s cubic-bezier(.4,0,.2,1),background .2s ease}
@@ -483,17 +483,296 @@ tfoot td{border-top:2px solid var(--border);padding:11px 15px;color:var(--text)}
 .adm-acc-sum{font-weight:700;font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--accent-dk)}
 .adm-acc-panel{max-height:0;overflow:hidden;transition:max-height .45s cubic-bezier(.4,0,.2,1)}
 .adm-acc-item.open .adm-acc-panel{max-height:2500px}
-.adm-acc-panel-inner{padding:0 12px 14px 16px}
+.adm-acc-panel-inner{
+  padding:0 12px 14px 16px;
+  min-width:0;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+}
 .adm-inner-tbl{font-size:13px}
 .adm-inner-tbl th{background:var(--sidebar);color:rgba(255,255,255,.92);font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:9px 10px}
 .adm-inner-tbl td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
 .adm-modal-kicker{font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45}
 
-/* PRINT — ticket térmico */
+/* Modal detalle grupo (Administrar Datos): desglose + totales */
+.adm-grupo-th-num,.adm-grupo-td-num{text-align:right;white-space:nowrap}
+.adm-grupo-td-num{font-variant-numeric:tabular-nums}
+.adm-grupo-td-num--emp{color:var(--warn);font-weight:600}
+.adm-grupo-td-num--est{color:var(--ok);font-weight:600}
+.adm-grupo-sum-root{
+  margin-top:12px;
+  padding:16px 18px;
+  border-radius:var(--r-sm);
+  background:linear-gradient(180deg,var(--card) 0%,var(--bg2) 100%);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+}
+.adm-grupo-sum-title{
+  font-size:11.5px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--text3);
+  margin-bottom:12px;
+}
+.adm-grupo-sum-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px 20px;
+}
+@media(max-width:700px){
+  .adm-grupo-sum-grid{grid-template-columns:1fr}
+}
+.adm-grupo-sum-lbl{
+  display:block;
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:var(--text2);
+  margin-bottom:6px;
+}
+.adm-grupo-sum-val{
+  font-size:19px;
+  font-weight:700;
+  font-family:'Cormorant Garamond',serif;
+  letter-spacing:.02em;
+  color:var(--text);
+}
+.adm-grupo-sum-val--emp{color:#c47a28}
+.adm-grupo-sum-val--est{color:var(--ok)}
+
+/* Administrar datos + modal detalle: encajan en móvil/tablet (scroll + límites viewport) */
+#pg-admin{min-width:0}
+#pg-admin .sec-head{align-items:flex-start}
+#pg-admin .sec-title{min-width:0;flex:1 1 auto;line-height:1.25}
+#pg-admin .card{min-width:0;max-width:100%;overflow:hidden}
+#pg-admin .adm-drill-banner{min-width:0}
+#pg-admin .adm-accordion-wrap{
+  min-height:0;
+  -webkit-overflow-scrolling:touch;
+}
+table.adm-day-summary-tbl{min-width:560px;width:100%;max-width:100%}
+.adm-admin-day-tbl-wrap{min-width:0}
+#mo-admin-grupo.mo-bg.open{
+  align-items:flex-start;
+  justify-content:center;
+  overflow-x:hidden;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+}
+.mo.mo-admin-grupo-sheet{
+  display:flex;
+  flex-direction:column;
+  padding:0;
+  margin:max(8px, env(safe-area-inset-top, 8px)) auto max(12px, env(safe-area-inset-bottom, 12px));
+  width:min(100%, calc(100vw - 16px));
+  max-width:min(820px, calc(100vw - 16px));
+  min-width:0;
+  max-height:min(92dvh, calc(100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px));
+  overflow:hidden;
+  box-sizing:border-box;
+}
+.mo.mo-admin-grupo-sheet .mo-admin-grupo-head{
+  flex-shrink:0;
+  padding:16px 16px 8px;
+  margin-bottom:0;
+  gap:10px;
+  align-items:flex-start;
+}
+.mo.mo-admin-grupo-sheet .mo-admin-grupo-head .mo-title{
+  min-width:0;
+  flex:1;
+  font-size:clamp(15px, 3.8vw, 18px);
+  line-height:1.25;
+  padding-right:8px;
+}
+.mo.mo-admin-grupo-sheet .mo-x{flex-shrink:0}
+.mo-admin-grupo-scroll{
+  flex:1 1 auto;
+  min-height:0;
+  min-width:0;
+  overflow:auto;
+  padding:0 14px 10px;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+.adm-grupo-kicker{margin-bottom:10px}
+.adm-grupo-tbl-outer{
+  min-width:0;
+  width:100%;
+  overflow-x:auto;
+  overflow-y:visible;
+  -webkit-overflow-scrolling:touch;
+  border:1px solid var(--border);
+  border-radius:var(--r-sm);
+}
+table.adm-grupo-det-tbl{
+  min-width:640px;
+  width:max-content;
+  max-width:none;
+}
+.mo-admin-grupo-scroll .adm-grupo-sum-root{margin-top:10px;padding:12px 14px}
+.mo-admin-grupo-footer{
+  flex-shrink:0;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:12px 16px 16px;
+  border-top:1px solid var(--border);
+  background:linear-gradient(180deg,var(--bg2),var(--card));
+}
+.mo-admin-grupo-footer--actions{
+  justify-content:flex-start;
+}
+.mo-admin-grupo-footer-spacer{
+  flex:1 1 8px;
+  min-width:0;
+}
+@media(max-width:420px){
+  .mo-admin-grupo-footer-spacer{flex-basis:100%;height:0}
+}
+@media(max-width:768px){
+  #pg-admin .adm-accordion-wrap{
+    max-height:min(calc(100dvh - 220px), 68vh);
+  }
+  .adm-acc-date{font-size:14px}
+  .adm-acc-sum{font-size:16px}
+}
+@media(max-width:480px){
+  .adm-grupo-det-tbl th{font-size:10px;padding:8px 6px}
+  .adm-grupo-det-tbl td{font-size:12px;padding:8px 6px}
+  .adm-grupo-det-tbl td:nth-child(2){
+    max-width:min(220px, 48vw);
+    white-space:normal;
+    word-break:break-word;
+  }
+}
+
+/* Ticket térmico admin: rollo 80 mm + lienzo horizontal rotado 90° (apaisado en el papel) */
 #tkt-print{display:none}
+#tkt-print .ticket-wrapper{
+  width:80mm;
+  height:var(--alto-total, 155mm);
+  position:relative;
+  overflow:hidden;
+  background:#fff;
+  color:#000;
+  font-family:Arial,Helvetica,sans-serif;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+#tkt-print .ticket-horizontal{
+  width:var(--alto-total, 155mm);
+  height:80mm;
+  position:absolute;
+  top:0;
+  left:80mm;
+  transform-origin:top left;
+  transform:rotate(90deg);
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:center;
+  gap:15mm;
+  padding:0 5mm;
+  box-sizing:border-box;
+}
+#tkt-print .separador-grueso{
+  width:4px;
+  min-width:4px;
+  height:88%;
+  max-height:72mm;
+  align-self:center;
+  background-color:#000!important;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+  flex-shrink:0;
+}
+#tkt-print .seccion-marca,
+#tkt-print .seccion-cobro{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  flex:0 1 auto;
+  min-width:0;
+}
+#tkt-print .texto-fecha{
+  font-size:16px;
+  font-weight:700;
+  margin-bottom:5px;
+}
+#tkt-print .texto-romina{
+  font-size:55px;
+  font-weight:900;
+  line-height:0.9;
+  letter-spacing:2px;
+  margin:0;
+}
+#tkt-print .texto-estetica{
+  font-size:12px;
+  letter-spacing:5px;
+  font-weight:700;
+  margin-top:5px;
+  text-transform:uppercase;
+}
+#tkt-print .caja-atiende{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  margin-bottom:12px;
+}
+#tkt-print .texto-atiende{
+  font-size:14px;
+  letter-spacing:1px;
+}
+#tkt-print .linea-subrayado{
+  width:100%;
+  max-width:100%;
+  height:2px;
+  background:#000;
+  margin-top:3px;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+#tkt-print .texto-monto{
+  font-size:70px;
+  font-weight:900;
+  line-height:1;
+  margin:0;
+}
+#tkt-print .thermal-ticket-feed{
+  width:14mm;
+  min-width:14mm;
+  flex-shrink:0;
+  align-self:stretch;
+}
+
 @media print{
+  @page{margin:0;size:auto}
   body > *:not(#tkt-print){display:none!important}
-  #tkt-print{display:block!important;width:80mm;font-family:'Courier New',monospace;font-size:12px;padding:8px}
+  #tkt-print{
+    display:block!important;
+    width:80mm;
+    margin:0;
+    padding:0;
+  }
+  #tkt-print .ticket-wrapper{
+    width:80mm;
+    height:var(--alto-total, 155mm)!important;
+    page-break-inside:avoid;
+  }
+  #tkt-print > div:not(.ticket-wrapper){
+    font-family:'Courier New',monospace;
+    font-size:12px;
+    padding:8px;
+  }
 }
 
 /* ANIMATIONS */
@@ -661,12 +940,8 @@ tfoot td{border-top:2px solid var(--border);padding:11px 15px;color:var(--text)}
   }
   .tab{flex-shrink:0;white-space:nowrap}
   .mo-xl{max-width:100%}
-  .adm-acc-panel-inner{
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-    overscroll-behavior-x:contain;
-  }
-  table.adm-inner-tbl{min-width:520px}
+  table.adm-day-summary-tbl{min-width:520px}
+  table.adm-grupo-det-tbl{min-width:560px}
   #mo-rep-sem .tbl-wrap{
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;

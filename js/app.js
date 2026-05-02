@@ -130,6 +130,7 @@ async function go(sec, opts) {
     await loadTurnos();
     loadEmpsSelect('v-emp');
     loadCatSelect('v-serv-sel');
+    if (typeof syncVentaRapidaComisionUi === 'function') syncVentaRapidaComisionUi();
     fillTurnoSelect('v-turno', '');
     onVentaEmpTurno();
     document.getElementById('v-hist-card').style.display = 'none';
@@ -340,6 +341,28 @@ async function loadCatsCache() {
     cats = [];
   }
 }
+
+/** UI modal catálogo: etiqueta y validación del campo comisión según tipo. */
+function syncCatComisionUi() {
+  const tipoEl = document.getElementById('cat-tipo-comision');
+  const lbl = document.getElementById('cat-com-lbl');
+  const inp = document.getElementById('cat-com');
+  if (!tipoEl || !lbl || !inp) return;
+  const tipo = normalizarTipoComisionServicio(tipoEl.value);
+  if (tipo === 'monto_fijo') {
+    lbl.textContent = 'Monto fijo de comisión ($)';
+    inp.removeAttribute('max');
+    inp.setAttribute('min', '0');
+    inp.setAttribute('step', '0.01');
+    inp.placeholder = 'Ej: 50.00';
+  } else {
+    lbl.textContent = 'Valor comisión (%)';
+    inp.setAttribute('min', '0');
+    inp.setAttribute('max', '100');
+    inp.setAttribute('step', '0.01');
+    inp.placeholder = 'Ej: 25';
+  }
+}
 async function loadCatalogo() {
   await loadCatsCache();
   const wrap = document.getElementById('cat-grid-wrap');
@@ -354,7 +377,7 @@ async function loadCatalogo() {
       ${c.categoria ? `<div style="font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">${c.categoria}</div>` : ''}
       <div class="cat-nm">${c.nombre}</div>
       <div class="cat-pr">${$m(c.precioBase)}</div>
-      <div class="cat-com">Comisión defecto: ${c.comisionDefecto || 0}%</div>
+      <div class="cat-com">${typeof textoComisionCatalogoResumido === 'function' ? textoComisionCatalogoResumido(c) : 'Comisión: —'}</div>
       <div class="cat-actions">
         <button class="btn btn-s btn-sm" onclick='editCat(${JSON.stringify(c)})'>✏️ Editar</button>
         <button class="btn btn-bad btn-sm" onclick="delCat('${c.id}')">🗑️</button>
@@ -366,6 +389,9 @@ async function loadCatalogo() {
 }
 function openCatModal() {
   ['cat-nom', 'cat-precio', 'cat-com', 'cat-cat', 'cat-id'].forEach((id) => (document.getElementById(id).value = ''));
+  const tipoSel = document.getElementById('cat-tipo-comision');
+  if (tipoSel) tipoSel.value = 'porcentaje';
+  syncCatComisionUi();
   document.getElementById('mo-cat-ttl').textContent = 'Nuevo Servicio';
   openMo('mo-cat');
 }
@@ -375,6 +401,9 @@ function editCat(c) {
   document.getElementById('cat-com').value = c.comisionDefecto || '';
   document.getElementById('cat-cat').value = c.categoria || '';
   document.getElementById('cat-id').value = c.id;
+  const tipoSel = document.getElementById('cat-tipo-comision');
+  if (tipoSel) tipoSel.value = normalizarTipoComisionServicio(c.tipoComision);
+  syncCatComisionUi();
   document.getElementById('mo-cat-ttl').textContent = 'Editar Servicio';
   openMo('mo-cat');
 }
@@ -382,13 +411,22 @@ async function saveCat() {
   const nombre = document.getElementById('cat-nom').value.trim();
   const precio = parseFloat(document.getElementById('cat-precio').value) || 0;
   const com = parseFloat(document.getElementById('cat-com').value) || 0;
+  const tipoComision = normalizarTipoComisionServicio(document.getElementById('cat-tipo-comision')?.value);
   const cat = document.getElementById('cat-cat').value.trim();
   const cid = document.getElementById('cat-id').value;
   if (!nombre) {
     alert('Ingresa el nombre del servicio.');
     return;
   }
-  const data = { nombre, precioBase: precio, comisionDefecto: com, categoria: cat };
+  if (tipoComision === 'porcentaje' && (com < 0 || com > 100)) {
+    alert('El porcentaje de comisión debe estar entre 0 y 100.');
+    return;
+  }
+  if (tipoComision === 'monto_fijo' && com < 0) {
+    alert('El monto fijo de comisión no puede ser negativo.');
+    return;
+  }
+  const data = { nombre, precioBase: precio, comisionDefecto: com, tipoComision, categoria: cat };
   try {
     if (cid) await db.collection('catalogo').doc(cid).update(data);
     else await db.collection('catalogo').add(data);
@@ -554,6 +592,7 @@ function loadCatSelect(selId) {
     o.textContent = c.nombre + (c.categoria ? ` (${c.categoria})` : '');
     o.dataset.precio = c.precioBase || 0;
     o.dataset.com = c.comisionDefecto || 0;
+    o.dataset.tipoComision = normalizarTipoComisionServicio(c.tipoComision);
     o.dataset.nombre = c.nombre;
     sel.appendChild(o);
   });

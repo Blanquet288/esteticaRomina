@@ -89,7 +89,7 @@ function go(sec){
   document.getElementById('tb-title').textContent=t;
   document.getElementById('tb-sub').textContent=s;
   if(sec==='dashboard') loadDash();
-  else if(sec==='ventas'){ loadEmpsSelect('v-emp'); loadCatSelect('v-serv-sel'); document.getElementById('v-hist-card').style.display='none'; }
+  else if(sec==='ventas'){ loadEmpsSelect('v-emp'); loadCatSelect('v-serv-sel'); if(typeof syncVentaRapidaComisionUi==='function')syncVentaRapidaComisionUi(); document.getElementById('v-hist-card').style.display='none'; }
   else if(sec==='masiva'){ loadEmpsSelect('bk-emp'); rebuildBulkSelects(); }
   else if(sec==='gastos') loadGastos();
   else if(sec==='catalogo') loadCatalogo();
@@ -112,6 +112,13 @@ async function saveConfig(){
 async function loadCatsCache(){
   try{ const snap=await db.collection('catalogo').orderBy('nombre').get(); cats=snap.docs.map(d=>({id:d.id,...d.data()})); } catch(e){ cats=[]; }
 }
+function syncCatComisionUi(){
+  const tipoEl=document.getElementById('cat-tipo-comision'), lbl=document.getElementById('cat-com-lbl'), inp=document.getElementById('cat-com');
+  if(!tipoEl||!lbl||!inp)return;
+  const tipo=normalizarTipoComisionServicio(tipoEl.value);
+  if(tipo==='monto_fijo'){ lbl.textContent='Monto fijo de comisión ($)'; inp.removeAttribute('max'); inp.setAttribute('min','0'); inp.setAttribute('step','0.01'); inp.placeholder='Ej: 50.00'; }
+  else{ lbl.textContent='Valor comisión (%)'; inp.setAttribute('min','0'); inp.setAttribute('max','100'); inp.setAttribute('step','0.01'); inp.placeholder='Ej: 25'; }
+}
 async function loadCatalogo(){
   await loadCatsCache();
   const wrap=document.getElementById('cat-grid-wrap');
@@ -123,7 +130,7 @@ async function loadCatalogo(){
       ${c.categoria?`<div style="font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">${c.categoria}</div>`:''}
       <div class="cat-nm">${c.nombre}</div>
       <div class="cat-pr">${$m(c.precioBase)}</div>
-      <div class="cat-com">Comisión defecto: ${c.comisionDefecto||0}%</div>
+      <div class="cat-com">${typeof textoComisionCatalogoResumido==='function'?textoComisionCatalogoResumido(c):('Comisión: '+(c.comisionDefecto||0)+'%')}</div>
       <div class="cat-actions">
         <button class="btn btn-s btn-sm" onclick='editCat(${JSON.stringify(c)})'>✏️ Editar</button>
         <button class="btn btn-bad btn-sm" onclick="delCat('${c.id}')">🗑️</button>
@@ -133,6 +140,7 @@ async function loadCatalogo(){
 }
 function openCatModal(){
   ['cat-nom','cat-precio','cat-com','cat-cat','cat-id'].forEach(id=>document.getElementById(id).value='');
+  const ts=document.getElementById('cat-tipo-comision'); if(ts)ts.value='porcentaje'; syncCatComisionUi();
   document.getElementById('mo-cat-ttl').textContent='Nuevo Servicio';
   openMo('mo-cat');
 }
@@ -142,6 +150,8 @@ function editCat(c){
   document.getElementById('cat-com').value=c.comisionDefecto||'';
   document.getElementById('cat-cat').value=c.categoria||'';
   document.getElementById('cat-id').value=c.id;
+  const ts=document.getElementById('cat-tipo-comision'); if(ts)ts.value=normalizarTipoComisionServicio(c.tipoComision);
+  syncCatComisionUi();
   document.getElementById('mo-cat-ttl').textContent='Editar Servicio';
   openMo('mo-cat');
 }
@@ -149,10 +159,13 @@ async function saveCat(){
   const nombre=document.getElementById('cat-nom').value.trim();
   const precio=parseFloat(document.getElementById('cat-precio').value)||0;
   const com=parseFloat(document.getElementById('cat-com').value)||0;
+  const tipoComision=normalizarTipoComisionServicio(document.getElementById('cat-tipo-comision')?.value);
   const cat=document.getElementById('cat-cat').value.trim();
   const cid=document.getElementById('cat-id').value;
   if(!nombre){ alert('Ingresa el nombre del servicio.'); return; }
-  const data={nombre,precioBase:precio,comisionDefecto:com,categoria:cat};
+  if(tipoComision==='porcentaje'&&(com<0||com>100)){ alert('El porcentaje de comisión debe estar entre 0 y 100.'); return; }
+  if(tipoComision==='monto_fijo'&&com<0){ alert('El monto fijo de comisión no puede ser negativo.'); return; }
+  const data={nombre,precioBase:precio,comisionDefecto:com,tipoComision,categoria:cat};
   try{
     if(cid) await db.collection('catalogo').doc(cid).update(data);
     else     await db.collection('catalogo').add(data);
@@ -228,22 +241,34 @@ function loadEmpsSelect(selId){
 function loadCatSelect(selId){
   const sel=document.getElementById(selId);
   sel.innerHTML='<option value="">Seleccionar servicio…</option>';
-  cats.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.nombre+(c.categoria?` (${c.categoria})`:''); o.dataset.precio=c.precioBase||0; o.dataset.com=c.comisionDefecto||0; o.dataset.nombre=c.nombre; sel.appendChild(o); });
+  cats.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.nombre+(c.categoria?` (${c.categoria})`:''); o.dataset.precio=c.precioBase||0; o.dataset.com=c.comisionDefecto||0; o.dataset.tipoComision=normalizarTipoComisionServicio(c.tipoComision); o.dataset.nombre=c.nombre; sel.appendChild(o); });
 }
 
 /* ════ VENTA RÁPIDA ════ */
+function syncVentaRapidaComisionUi(){
+  const sel=document.getElementById('v-serv-sel'), lbl=document.getElementById('v-cpct-lbl'), inp=document.getElementById('v-cpct');
+  if(!lbl||!inp)return;
+  const opt=sel?.options?.[sel?.selectedIndex];
+  const tipo=opt&&opt.value?normalizarTipoComisionServicio(opt.dataset.tipoComision):'porcentaje';
+  if(tipo==='monto_fijo'){ lbl.innerHTML='Comisión fija ($) <small style="color:var(--text3)">(editable)</small>'; inp.removeAttribute('max'); inp.setAttribute('min','0'); inp.setAttribute('step','0.01'); }
+  else{ lbl.innerHTML='% Comisión <small style="color:var(--text3)">(editable)</small>'; inp.setAttribute('min','0'); inp.setAttribute('max','100'); inp.setAttribute('step','1'); }
+}
 function onVentaServChange(){
   const sel=document.getElementById('v-serv-sel');
   const opt=sel.options[sel.selectedIndex];
   if(!opt||!opt.value) return;
   document.getElementById('v-monto').value=parseFloat(opt.dataset.precio||0).toFixed(2);
   document.getElementById('v-cpct').value=opt.dataset.com||0;
+  syncVentaRapidaComisionUi();
   calcCom();
 }
 function calcCom(){
   const m=parseFloat(document.getElementById('v-monto').value)||0;
-  const p=parseFloat(document.getElementById('v-cpct').value)||0;
-  const com=m*p/100;
+  const sel=document.getElementById('v-serv-sel');
+  const opt=sel?.options?.[sel?.selectedIndex];
+  const tipo=opt&&opt.value?normalizarTipoComisionServicio(opt.dataset.tipoComision):'porcentaje';
+  const val=parseFloat(document.getElementById('v-cpct').value)||0;
+  const com=comisionMontoDesdePrecioYValor(m,val,tipo);
   document.getElementById('v-cmonto').value=com.toFixed(2);
   document.getElementById('v-util').value=(m-com).toFixed(2);
 }
@@ -253,17 +278,20 @@ async function regVenta(){
   const eid=document.getElementById('v-emp').value;
   const servSel=document.getElementById('v-serv-sel');
   const catId=servSel.value;
-  const servNom=servSel.options[servSel.selectedIndex]?.dataset.nombre||'';
+  const opt=servSel.options[servSel.selectedIndex];
+  const servNom=opt?.dataset?.nombre||'';
+  const tipoComision=opt?normalizarTipoComisionServicio(opt.dataset.tipoComision):'porcentaje';
+  const valorCom=parseFloat(document.getElementById('v-cpct').value)||0;
   const monto=parseFloat(document.getElementById('v-monto').value);
-  const pct=parseFloat(document.getElementById('v-cpct').value)||0;
-  const comM=parseFloat(document.getElementById('v-cmonto').value)||0;
-  const util=parseFloat(document.getElementById('v-util').value)||0;
+  const comM=comisionMontoDesdePrecioYValor(monto,valorCom,tipoComision);
+  const pct=comisionPctParaGuardarEnVenta(monto,comM,tipoComision,valorCom);
+  const util=Math.round((monto-comM)*100)/100;
   if(!fecha||!eid||!catId||!monto){ showAl(al,'bad','❌ Completa todos los campos, incluye el servicio.'); return; }
   const emp=emps.find(e=>e.id===eid);
   try{
     await db.collection('ventas').add({
       fecha, idEmpleado:eid, servicio:servNom, idServicio:catId,
-      monto, comisionPct:pct, comisionMonto:comM, utilidadNegocio:util,
+      monto, comisionTipo:tipoComision, comisionPct:pct, comisionMonto:comM, utilidadNegocio:util,
       ts:firebase.firestore.FieldValue.serverTimestamp()
     });
     showAl(al,'ok','✅ Venta registrada correctamente.');
@@ -323,7 +351,7 @@ async function loadVHist(){
         <td>${v.fecha}</td><td>${em?.nombre||'—'}</td><td>${v.servicio}</td>
         <td><strong>${$m(v.monto)}</strong></td>
         <td style="color:var(--warn)">${$m(v.comisionMonto)}</td>
-        <td><span class="bdg bdg-info">${v.comisionPct||0}%</span></td>
+        <td><span class="bdg bdg-info">${typeof etiquetaVentaHistorialComisionPct==='function'?etiquetaVentaHistorialComisionPct(v):(v.comisionPct||0)+'%'}</span></td>
         <td style="color:var(--ok)">${$m(v.utilidadNegocio)}</td>
       </tr>`;
     }).join('');
@@ -335,12 +363,12 @@ let bulkRows=[];
 function initBulk(){ bulkRows=[]; renderBulkRows(); addBulkRow(); }
 
 function buildCatOptions(selectedId=''){
-  return '<option value="">Seleccionar servicio…</option>'+cats.map(c=>`<option value="${c.id}" data-precio="${c.precioBase||0}" data-com="${c.comisionDefecto||0}" data-nombre="${c.nombre}" ${c.id===selectedId?'selected':''}>${c.nombre}${c.categoria?' ('+c.categoria+')':''}</option>`).join('');
+  return '<option value="">Seleccionar servicio…</option>'+cats.map(c=>`<option value="${c.id}" data-precio="${c.precioBase||0}" data-com="${c.comisionDefecto||0}" data-tipo-comision="${normalizarTipoComisionServicio(c.tipoComision)}" data-nombre="${c.nombre}" ${c.id===selectedId?'selected':''}>${c.nombre}${c.categoria?' ('+c.categoria+')':''}</option>`).join('');
 }
 
 function addBulkRow(){
   const id=Date.now();
-  bulkRows.push({id,catId:'',nombre:'',cantidad:1,precio:0,comPct:0,subtotal:0,comMonto:0});
+  bulkRows.push({id,catId:'',nombre:'',cantidad:1,precio:0,comPct:0,comTipo:'porcentaje',subtotal:0,comMonto:0});
   renderBulkRows();
 }
 
@@ -370,6 +398,7 @@ function onBulkServChange(id, sel){
   r.nombre=opt.dataset.nombre||'';
   r.precio=parseFloat(opt.dataset.precio||0);
   r.comPct=parseFloat(opt.dataset.com||0);
+  r.comTipo=normalizarTipoComisionServicio(opt.dataset.tipoComision);
   calcBulkRow(r);
   // Update inputs in the same row
   const tr=document.getElementById(`brow-${id}`);
@@ -383,7 +412,7 @@ function onBulkQtyChange(id,inp){ const r=bulkRows.find(x=>x.id===id); if(!r)ret
 function onBulkPriceChange(id,inp){ const r=bulkRows.find(x=>x.id===id); if(!r)return; r.precio=parseFloat(inp.value)||0; calcBulkRow(r); refreshBulkReadonly(id,r); updateBulkTotals(); }
 function onBulkComChange(id,inp){ const r=bulkRows.find(x=>x.id===id); if(!r)return; r.comPct=parseFloat(inp.value)||0; calcBulkRow(r); refreshBulkReadonly(id,r); updateBulkTotals(); }
 
-function calcBulkRow(r){ r.subtotal=r.cantidad*r.precio; r.comMonto=r.subtotal*r.comPct/100; }
+function calcBulkRow(r){ r.subtotal=r.cantidad*r.precio; r.comMonto=comisionMontoDesdePrecioYValor(r.subtotal,r.comPct,r.comTipo||'porcentaje'); }
 function refreshBulkReadonly(id,r){
   const tr=document.getElementById(`brow-${id}`); if(!tr)return;
   const ins=tr.querySelectorAll('input');
@@ -417,9 +446,11 @@ async function saveBulk(){
   const batch=db.batch();
   validRows.forEach(r=>{
     const ref=db.collection('ventas').doc();
+    const tipoCom=normalizarTipoComisionServicio(r.comTipo);
+    const pct=comisionPctParaGuardarEnVenta(r.subtotal,r.comMonto,tipoCom,r.comPct);
     batch.set(ref,{
       fecha, idEmpleado:eid, servicio:r.nombre, idServicio:r.catId,
-      cantidad:r.cantidad, monto:r.subtotal, comisionPct:r.comPct,
+      cantidad:r.cantidad, monto:r.subtotal, comisionTipo:tipoCom, comisionPct:pct,
       comisionMonto:r.comMonto, utilidadNegocio:r.subtotal-r.comMonto,
       ts:firebase.firestore.FieldValue.serverTimestamp()
     });
