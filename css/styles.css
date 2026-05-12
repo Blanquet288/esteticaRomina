@@ -189,6 +189,9 @@ tfoot td{border-top:2px solid var(--border);padding:11px 15px;color:var(--text)}
 .bulk-table{width:100%;border-collapse:separate;border-spacing:0 6px;min-width:700px}
 .bulk-table thead th{background:var(--bg);padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);border-bottom:2px solid var(--border)}
 .bulk-row td{background:var(--card);border:1px solid var(--border);padding:6px 8px;vertical-align:middle}
+.bulk-row td.bk-com-valor-cell{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;width:100%}
+.bulk-row .bk-com-valor-inp{min-width:0;flex:1;max-width:7.5rem;width:auto!important}
+.bulk-row .bk-com-affix{font-size:12.5px;color:var(--text2);font-weight:600;flex-shrink:0;line-height:1}
 .bulk-row td:first-child{border-radius:var(--r-sm) 0 0 var(--r-sm)}
 .bulk-row td:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0}
 .bulk-row td select,.bulk-row td input{border:1.5px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);outline:none;width:100%;transition:var(--tr)}
@@ -240,6 +243,31 @@ tfoot td{border-top:2px solid var(--border);padding:11px 15px;color:var(--text)}
 .rep-sem-row{cursor:pointer;transition:background .2s ease}
 .rep-sem-row:hover{background:var(--bg)}
 .rep-sem-row:focus-visible{outline:2px solid rgba(201,147,106,.45);outline-offset:-2px}
+.rep-week-cards-root{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+}
+@media (min-width:900px){
+  .rep-week-cards-root{grid-template-columns:repeat(4,1fr)}
+}
+.rep-week-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:14px 14px 12px;
+  text-align:left;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-height:118px;
+}
+.rep-week-card-top{display:flex;flex-direction:column;gap:2px;margin-bottom:2px}
+.rep-week-card-title{font-weight:700;font-size:14px;color:var(--text)}
+.rep-week-card-dates{font-size:12px;color:var(--text2)}
+.rep-week-card-bruto{font-size:12.5px;color:var(--text2);font-weight:500}
+.rep-week-card-neto{font-size:1.35rem;font-weight:700;color:#198754;line-height:1.25;margin-top:2px}
+.rep-week-card-pct{font-size:11.5px;color:var(--text3);margin-top:auto;padding-top:4px}
 .rep-ch-wrap canvas{cursor:pointer}
 .mo-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
 .mo-title{font-size:18px;font-weight:700}

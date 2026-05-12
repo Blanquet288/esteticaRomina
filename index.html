@@ -235,7 +235,7 @@
                 <th style="min-width:180px">Servicio</th>
                 <th style="min-width:90px">Cantidad</th>
                 <th style="min-width:110px">Precio Unit. ($)</th>
-                <th style="min-width:100px" id="bk-th-com-valor" title="Porcentaje o monto fijo según el servicio">Com. % / $</th>
+                <th style="min-width:120px" id="bk-th-com-valor" title="Muestra % o monto fijo por servicio según el catálogo">Com. % / $</th>
                 <th style="min-width:110px">Subtotal ($)</th>
                 <th style="min-width:110px">Comisión ($)</th>
                 <th style="min-width:40px"></th>
@@ -415,17 +415,15 @@
         <div class="g2">
           <div class="card">
             <div class="card-h"><span>📊</span> Suma semanal del mes</div>
-            <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45">Total <strong>bruto vendido</strong> por bloques del calendario (Semana 1 a 4). La gráfica apila por <strong>empleada</strong> (leyenda inferior); la altura total de cada barra coincide con la suma de la tabla.</p>
+            <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45">Total <strong>bruto vendido</strong> por bloques del calendario (Semana 1 a 4). El desglose a la derecha incluye la <strong>ganancia neta</strong> por semana. La gráfica apila por <strong>empleada</strong> (leyenda inferior); la altura total de cada barra coincide con la suma bruta de la tabla.</p>
             <div class="ch-wrap rep-ch-wrap" title="Clic en una barra: abrir Administrar Datos filtrado por esa semana"><canvas id="ch-vsem"></canvas></div>
           </div>
           <div class="card">
-            <div class="card-h"><span>📋</span> Tabla — suma por semana</div>
-            <div class="tbl-wrap">
-              <table>
-            <thead><tr><th>Semana</th><th>Periodo (días)</th><th>Total vendido</th><th>% del mes</th></tr></thead>
-            <tbody id="tb-rep-semanal" title="Clic en una fila: Administrar Datos filtrado por esa semana"></tbody>
-              </table>
-            </div>
+            <div class="card-h"><span>📋</span> Desglose por semanas</div>
+            <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45">
+              Cada bloque muestra la <strong>venta bruta</strong> (facturación con comisiones incluidas) y la <strong>ganancia neta</strong> del negocio en esas fechas: bruto menos comisiones pagadas a empleadas. Clic en una tarjeta abre <strong>Administrar Datos</strong> filtrado por esa semana.
+            </p>
+            <div id="rep-week-cards-root" class="rep-week-cards-root" title="Clic: Administrar Datos filtrado por esa semana"></div>
           </div>
         </div>
       </div>

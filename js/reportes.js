@@ -321,6 +321,7 @@ function renderChVentas(ventas) {
   const periodos = ['1 – 7', '8 – 14', '15 – 21', '22 – fin de mes'];
   const m = normalizeMonthYYYYMM(document.getElementById('rep-m')?.value) || curMonth();
   const sem = [0, 0, 0, 0];
+  const semCom = [0, 0, 0, 0];
   ventas.forEach((v) => {
     const f = v.fecha || '';
     if (f.length < 10 || f.slice(0, 7) !== m) return;
@@ -328,17 +329,27 @@ function renderChVentas(ventas) {
     if (Number.isNaN(d) || d < 1 || d > 31) return;
     const w = repWeekOfMonth(d) - 1;
     sem[w] += ventaBrutaDesdeVenta(v);
+    semCom[w] += comisionDesdeVenta(v);
   });
   const totalMes = sem.reduce((a, b) => a + b, 0);
-  const tbSem = document.getElementById('tb-rep-semanal');
-  if (tbSem) {
-    tbSem.innerHTML = labels
+  const weekRoot = document.getElementById('rep-week-cards-root');
+  if (weekRoot) {
+    weekRoot.innerHTML = labels
       .map((lbl, i) => {
-        const pct = totalMes > 0 ? ((sem[i] / totalMes) * 100).toFixed(1) : '0.0';
+        const bruto = sem[i];
+        const neto = Math.max(0, bruto - semCom[i]);
+        const pct = totalMes > 0 ? ((bruto / totalMes) * 100).toFixed(1) : '0.0';
         const wk = i + 1;
-        return `<tr class="rep-sem-row" role="button" tabindex="0" onclick="navigateRepWeekToAdmin(${wk})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigateRepWeekToAdmin(${wk});}">
-          <td><strong>${lbl}</strong></td><td style="color:var(--text2)">${periodos[i]}</td><td><strong>${$m(sem[i])}</strong></td><td>${pct}%</td>
-        </tr>`;
+        const kbd = `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigateRepWeekToAdmin(${wk});}"`;
+        return `<div class="rep-week-card rep-sem-row" role="button" tabindex="0" onclick="navigateRepWeekToAdmin(${wk})" ${kbd}>
+          <div class="rep-week-card-top">
+            <span class="rep-week-card-title">${lbl}</span>
+            <span class="rep-week-card-dates">${periodos[i]}</span>
+          </div>
+          <div class="rep-week-card-bruto">Bruto: ${$m(bruto)}</div>
+          <div class="rep-week-card-neto">Neto: ${$m(neto)}</div>
+          <div class="rep-week-card-pct">${pct}% del mes (bruto)</div>
+        </div>`;
       })
       .join('');
   }
@@ -391,7 +402,8 @@ function renderChVentas(ventas) {
                 const raw = ds.data[ix];
                 sum += typeof raw === 'number' ? raw : 0;
               });
-              return 'Total semana: ' + $m(sum);
+              const neto = Math.max(0, sum - (semCom[ix] || 0));
+              return `Bruto semana: ${$m(sum)} · Neto: ${$m(neto)}`;
             },
             afterFooter() {
               return 'Clic en la barra: Administrar Datos por semana';

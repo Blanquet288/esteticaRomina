@@ -105,13 +105,22 @@ function normalizarTipoComisionServicio(raw) {
 
 /**
  * Comisión empleada según precio bruto de la línea y el valor guardado en catálogo (o editado en venta).
- * Porcentaje: (monto * valor) / 100. Monto fijo: valor acotado al bruto (no mayor al total).
+ * Porcentaje: (montoBruto * valor) / 100, equivalente a (precio unitario × cantidad) × (porcentaje / 100).
+ * Monto fijo: (monto fijo por servicio × cantidad), acotado al bruto de la línea si aplica.
+ * @param {number} montoBruto Subtotal de la línea (precio unitario × cantidad).
+ * @param {number} valorComision % de comisión o monto fijo por unidad de servicio.
+ * @param {string} tipoComision `porcentaje` | `monto_fijo`
+ * @param {number|undefined} [cantidad] Si se informa (>0), el fijo se multiplica por cantidad; si no, se asume 1 unidad.
  */
-function comisionMontoDesdePrecioYValor(montoBruto, valorComision, tipoComision) {
+function comisionMontoDesdePrecioYValor(montoBruto, valorComision, tipoComision, cantidad) {
   const m = Number(montoBruto) || 0;
   const val = Number(valorComision) || 0;
-  if (normalizarTipoComisionServicio(tipoComision) === 'monto_fijo') {
-    const c = Math.max(0, val);
+  const tipo = normalizarTipoComisionServicio(tipoComision);
+  const qRaw = cantidad != null && cantidad !== '' ? Number(cantidad) : NaN;
+  const q = Number.isFinite(qRaw) && qRaw > 0 ? qRaw : null;
+  if (tipo === 'monto_fijo') {
+    const unidades = q != null ? q : 1;
+    const c = Math.max(0, val * unidades);
     return Math.min(c, m);
   }
   return (m * val) / 100;

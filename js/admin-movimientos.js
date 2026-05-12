@@ -621,7 +621,10 @@ function adminRecalcVentaMontos() {
   const monto = parseFloat(document.getElementById('adm-v-monto').value) || 0;
   const val = parseFloat(document.getElementById('adm-v-pct').value) || 0;
   const tipo = getAdminVentaTipoActual();
-  const comisionMonto = comisionMontoDesdePrecioYValor(monto, val, tipo);
+  const cantStr = document.getElementById('adm-v-cant')?.value;
+  const cantNum = cantStr ? parseFloat(cantStr) : NaN;
+  const cantidad = !Number.isNaN(cantNum) && cantNum > 0 ? cantNum : undefined;
+  const comisionMonto = comisionMontoDesdePrecioYValor(monto, val, tipo, cantidad);
   const utilidadNegocio = monto - comisionMonto;
   const cEl = document.getElementById('adm-v-com');
   const uEl = document.getElementById('adm-v-util');
@@ -655,12 +658,13 @@ async function saveAdminVenta() {
     showToast('bad', '❌ Selecciona un turno.');
     return;
   }
-  const comisionMonto = comisionMontoDesdePrecioYValor(monto, valCom, tipo);
+  const cantStr = document.getElementById('adm-v-cant')?.value;
+  const cantNum = cantStr ? parseFloat(cantStr) : NaN;
+  const cantidadPre = !Number.isNaN(cantNum) && cantNum > 0 ? cantNum : undefined;
+  const comisionMonto = comisionMontoDesdePrecioYValor(monto, valCom, tipo, cantidadPre);
   const utilidadNegocio = monto - comisionMonto;
   const pct = comisionPctParaGuardarEnVenta(monto, comisionMonto, tipo, valCom);
   const turno = readTurnoFromSelect('adm-v-turno');
-  const cantStr = document.getElementById('adm-v-cant')?.value;
-  const cantNum = cantStr ? parseFloat(cantStr) : NaN;
   const payload = {
     fecha,
     idEmpleado: eid,

@@ -189,18 +189,26 @@ function renderBulkRows() {
     return;
   }
   tbody.innerHTML = bulkRows
-    .map(
-      (r) => `
+    .map((r) => {
+      const esFijo = normalizarTipoComisionServicio(r.comTipo) === 'monto_fijo';
+      const comStep = esFijo ? '0.01' : '1';
+      const comMax = esFijo ? '' : 'max="100"';
+      const comVal = r.comPct ? String(r.comPct) : '';
+      return `
     <tr class="bulk-row" id="brow-${r.id}">
       <td><select onchange="onBulkServChange(${r.id},this)">${buildCatOptions(r.catId)}</select></td>
       <td><input type="number" value="${r.cantidad}" min="1" step="1" onchange="onBulkQtyChange(${r.id},this)" oninput="onBulkQtyChange(${r.id},this)"></td>
       <td><input type="number" value="${r.precio || ''}" placeholder="0.00" step="0.01" onchange="onBulkPriceChange(${r.id},this)" oninput="onBulkPriceChange(${r.id},this)"></td>
-      <td><input type="number" value="${r.comPct || ''}" placeholder="0" step="1" onchange="onBulkComChange(${r.id},this)" oninput="onBulkComChange(${r.id},this)"></td>
+      <td class="bk-com-valor-cell">
+        <span class="bk-com-affix bk-com-prefix" aria-hidden="true"${esFijo ? '' : ' hidden'}>$</span>
+        <input type="number" class="bk-com-valor-inp" value="${comVal}" placeholder="0" min="0" ${comMax} step="${comStep}" onchange="onBulkComChange(${r.id},this)" oninput="onBulkComChange(${r.id},this)">
+        <span class="bk-com-affix bk-com-suffix" aria-hidden="true"${esFijo ? ' hidden' : ''}>%</span>
+      </td>
       <td><input type="number" value="${r.subtotal ? r.subtotal.toFixed(2) : ''}" readonly></td>
       <td><input type="number" value="${r.comMonto ? r.comMonto.toFixed(2) : ''}" readonly></td>
       <td><button class="btn-icon del" onclick="removeBulkRow(${r.id})">🗑️</button></td>
-    </tr>`
-    )
+    </tr>`;
+    })
     .join('');
   updateBulkTotals();
 }
@@ -215,12 +223,7 @@ function onBulkServChange(id, sel) {
   r.comPct = parseFloat(opt.dataset.com || 0);
   r.comTipo = normalizarTipoComisionServicio(opt.dataset.tipoComision);
   calcBulkRow(r);
-  const tr = document.getElementById(`brow-${id}`);
-  tr.querySelectorAll('input')[1].value = r.precio.toFixed(2);
-  tr.querySelectorAll('input')[2].value = r.comPct;
-  tr.querySelectorAll('input')[3].value = r.subtotal.toFixed(2);
-  tr.querySelectorAll('input')[4].value = r.comMonto.toFixed(2);
-  updateBulkTotals();
+  renderBulkRows();
 }
 function onBulkQtyChange(id, inp) {
   const r = bulkRows.find((x) => x.id === id);
@@ -249,7 +252,7 @@ function onBulkComChange(id, inp) {
 
 function calcBulkRow(r) {
   r.subtotal = r.cantidad * r.precio;
-  r.comMonto = comisionMontoDesdePrecioYValor(r.subtotal, r.comPct, r.comTipo || 'porcentaje');
+  r.comMonto = comisionMontoDesdePrecioYValor(r.subtotal, r.comPct, r.comTipo || 'porcentaje', r.cantidad);
 }
 function refreshBulkReadonly(id, r) {
   const tr = document.getElementById(`brow-${id}`);
