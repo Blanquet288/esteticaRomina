@@ -77,6 +77,7 @@
         </button>
         <div class="sb-group-items">
           <div class="nav-it" onclick="go('reportes')" data-s="reportes"><span class="nav-ic">📊</span><span class="nav-lbl">Reportes</span></div>
+          <div class="nav-it" onclick="go('analisis-gastos')" data-s="analisis-gastos"><span class="nav-ic">📉</span><span class="nav-lbl">Análisis de Gastos</span></div>
           <div class="nav-it" onclick="go('cierre')" data-s="cierre"><span class="nav-ic">🔒</span><span class="nav-lbl">Cierre de Caja</span></div>
         </div>
       </div>
@@ -307,10 +308,19 @@
         <div class="card">
           <div class="card-h"><span>➕</span> Registrar Gasto</div>
           <div class="frow">
-            <div class="field"><label>Fecha</label><input type="date" id="g-fecha"></div>
+            <div class="field"><label>Fecha</label><input type="date" id="g-fecha" onchange="syncGastoSemanaFromFecha()"></div>
             <div class="field"><label>Categoría</label><select id="g-cat"><option value="Fijo">Fijo (Renta, Agua, Luz…)</option><option value="Operativo">Operativo (Insumos, Extras…)</option></select></div>
           </div>
-          <div class="frow x1"><div class="field"><label>Concepto</label><input type="text" id="g-concepto" placeholder="Ej: Renta mensual, Tinte…"></div></div>
+          <div class="frow">
+            <div class="field"><label>Concepto</label><input type="text" id="g-concepto" list="g-conceptos-list" placeholder="Ej: Renta mensual, Tinte…" autocomplete="off"></div>
+            <div class="field"><label>Descontar en</label><select id="g-semana" title="Semana de caja de la que sale el egreso">
+              <option value="1">Semana 1 (Días 1-7)</option>
+              <option value="2">Semana 2 (Días 8-14)</option>
+              <option value="3">Semana 3 (Días 15-21)</option>
+              <option value="4">Semana 4 (Días 22-31)</option>
+            </select></div>
+          </div>
+          <datalist id="g-conceptos-list"></datalist>
           <div class="frow x1"><div class="field"><label>Monto ($)</label><input type="number" id="g-monto" placeholder="0.00" step="0.01"></div></div>
           <button class="btn btn-p btn-full" onclick="regGasto()">💾 Guardar Gasto</button>
         </div>
@@ -331,6 +341,51 @@
             <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Monto</th><th></th></tr></thead>
             <tbody id="tb-gastos"></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ANÁLISIS DE GASTOS ── -->
+    <section class="pg" id="pg-analisis-gastos">
+      <div class="sec-head">
+        <h2 class="sec-title">Análisis de Gastos</h2>
+      </div>
+      <p class="ag-intro">Historial de compras, costo promedio y ciclo de recompra por concepto (insumos, renta, etc.).</p>
+      <div class="ag-layout">
+        <div class="card ag-list-card">
+          <div class="card-h"><span>📉</span> Conceptos registrados</div>
+          <div class="field" style="margin-bottom:12px">
+            <label for="ag-buscar">Buscar</label>
+            <input type="search" id="ag-buscar" placeholder="Ej: Tinte, Renta…" oninput="filterAnalisisGastosConceptos()" autocomplete="off">
+          </div>
+          <ul class="ag-conceptos-list" id="ag-conceptos-list" role="listbox" aria-label="Lista de conceptos"></ul>
+        </div>
+        <div class="card ag-detail-card">
+          <div id="ag-empty" class="ag-empty">
+            <div class="ag-empty-ico">📊</div>
+            <p>Selecciona un concepto de la lista para ver su línea de tiempo y métricas.</p>
+          </div>
+          <div id="ag-detalle" class="ag-detalle" hidden>
+            <header class="ag-detail-head">
+              <p class="gasto-panel-kicker ag-detail-kicker">Concepto</p>
+              <h3 class="ag-detail-title" id="ag-title">—</h3>
+              <p class="ag-detail-meta" id="ag-meta"></p>
+            </header>
+            <div class="gasto-panel-stats ag-detail-stats">
+              <div class="gasto-stat-card">
+                <span class="gasto-stat-lbl">Costo promedio</span>
+                <span class="gasto-stat-val" id="ag-stat-promedio">—</span>
+              </div>
+              <div class="gasto-stat-card">
+                <span class="gasto-stat-lbl">Frecuencia promedio</span>
+                <span class="gasto-stat-val" id="ag-stat-frecuencia">—</span>
+              </div>
+            </div>
+            <h4 class="gasto-timeline-heading">Historial de compras</h4>
+            <div class="gasto-timeline-wrap">
+              <div class="gasto-timeline" id="ag-timeline"></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -517,7 +572,7 @@
             </div>
             <div class="cj-panel">
               <div class="cj-panel-h"><span>📅</span> Desglose por semanas</div>
-              <p class="cj-panel-sub">Suma de ventas por bloque calendario (mismo criterio que Reportes).</p>
+              <p class="cj-panel-sub">Neto semanal = ventas brutas − comisiones − gastos asignados a cada semana.</p>
               <div class="cj-sem-grid" id="cj-sem-grid"></div>
             </div>
             <div class="cj-panel cj-panel-gasto">
@@ -882,6 +937,34 @@
   </div>
 </div>
 
+<div class="gasto-panel-bg" id="gasto-panel-bg" onclick="if(event.target===this) closeGastoAnalisisPanel()" aria-hidden="true">
+  <aside class="gasto-panel" id="gasto-panel" role="dialog" aria-labelledby="gasto-panel-title" onclick="event.stopPropagation()">
+    <header class="gasto-panel-head">
+      <div class="gasto-panel-head-text">
+        <p class="gasto-panel-kicker">Análisis de gasto</p>
+        <h2 class="gasto-panel-title" id="gasto-panel-title">—</h2>
+        <p class="gasto-panel-meta" id="gasto-panel-meta"></p>
+      </div>
+      <button type="button" class="gasto-panel-close" onclick="closeGastoAnalisisPanel()" aria-label="Cerrar panel">✕</button>
+    </header>
+    <div class="gasto-panel-body">
+      <div class="gasto-panel-stats" id="gasto-panel-stats">
+        <div class="gasto-stat-card">
+          <span class="gasto-stat-lbl">Costo promedio</span>
+          <span class="gasto-stat-val" id="gasto-stat-promedio">—</span>
+        </div>
+        <div class="gasto-stat-card">
+          <span class="gasto-stat-lbl">Frecuencia promedio</span>
+          <span class="gasto-stat-val" id="gasto-stat-frecuencia">—</span>
+        </div>
+      </div>
+      <h3 class="gasto-timeline-heading">Historial de compras</h3>
+      <div class="gasto-timeline-wrap">
+        <div class="gasto-timeline" id="gasto-panel-timeline"></div>
+      </div>
+    </div>
+  </aside>
+</div>
 <div id="toast-container" class="toast-host" aria-live="polite" aria-relevant="additions"></div>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>

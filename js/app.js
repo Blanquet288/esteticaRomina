@@ -58,10 +58,16 @@ async function initApp() {
   loadDash();
   document.getElementById('v-fecha').value = today();
   document.getElementById('g-fecha').value = today();
+  document.getElementById('g-fecha')?.addEventListener('change', syncGastoSemanaFromFecha);
+  syncGastoSemanaFromFecha();
   document.getElementById('bk-fecha').value = today();
   const rhFecha = document.getElementById('rh-fecha');
   if (rhFecha) rhFecha.value = today();
   initBulk();
+  initGastosTableInteraction();
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeGastoAnalisisPanel();
+  });
 }
 function updateDate() {
   document.getElementById('tb-date').textContent = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -106,6 +112,7 @@ const pageMap = {
   empleados: ['Empleadas', 'Gestión de personal'],
   ahorros: ['Fondo de Ahorros', 'Control del ahorro empresarial'],
   reportes: ['Reportes y Estadísticas', 'Análisis de desempeño mensual'],
+  'analisis-gastos': ['Análisis de Gastos', 'Historial, costo promedio y ciclo de compra por concepto'],
   cierre: ['Cierre de Caja', 'Cálculo de ganancias y distribución'],
   admin: ['Administrar Datos', 'Gestor de movimientos del mes'],
   config: ['Configuración', 'Ajustes del sistema'],
@@ -145,11 +152,15 @@ async function go(sec, opts) {
     loadEmpsSelect('rh-emp');
     fillTurnoSelect('rh-turno', '');
     onRhEmpTurno();
-  } else if (sec === 'gastos') loadGastos();
+  } else if (sec === 'gastos') {
+    loadGastoConceptosSuggestions();
+    loadGastos();
+  }
   else if (sec === 'catalogo') loadCatalogo();
   else if (sec === 'empleados') loadEmps();
   else if (sec === 'ahorros') loadAhorros();
   else if (sec === 'reportes') loadReportes();
+  else if (sec === 'analisis-gastos') await loadAnalisisGastos(opts);
   else if (sec === 'cierre') await loadCierreResumenMes();
   else if (sec === 'admin') await loadAdminMovimientos();
   else if (sec === 'config') {
@@ -598,20 +609,306 @@ function loadCatSelect(selId) {
   });
 }
 
+/** Día en fecha YYYY-MM-DD → semana 1–4 (mismo criterio que Reportes). */
+function semanaFromFechaStr(fecha) {
+  if (!fecha || fecha.length < 10) return 1;
+  const d = parseInt(fecha.slice(8, 10), 10);
+  if (Number.isNaN(d)) return 1;
+  if (typeof repWeekOfMonth === 'function') return repWeekOfMonth(d);
+  if (d <= 7) return 1;
+  if (d <= 14) return 2;
+  if (d <= 21) return 3;
+  return 4;
+}
+
+/** Semana de caja asignada al gasto (Firestore o derivada de la fecha). */
+function gastoSemanaAsignada(g) {
+  const n = parseInt(g.semanaAsignada, 10);
+  if (n >= 1 && n <= 4) return n;
+  return semanaFromFechaStr(g.fecha);
+}
+
+function syncGastoSemanaFromFecha() {
+  const fecha = document.getElementById('g-fecha')?.value;
+  const sel = document.getElementById('g-semana');
+  if (!fecha || !sel) return;
+  sel.value = String(semanaFromFechaStr(fecha));
+}
+
+/** Rellena el datalist de conceptos desde Firestore. */
+async function loadGastoConceptosSuggestions() {
+  const dl = document.getElementById('g-conceptos-list');
+  if (!dl) return;
+  try {
+    const snap = await db.collection('gastos').get();
+    const set = new Set();
+    snap.docs.forEach((d) => {
+      const c = (d.data().concepto || '').trim();
+      if (c) set.add(c);
+    });
+    const sorted = [...set].sort((a, b) => a.localeCompare(b, 'es'));
+    dl.innerHTML = '';
+    sorted.forEach((c) => {
+      const o = document.createElement('option');
+      o.value = c;
+      dl.appendChild(o);
+    });
+  } catch (e) {
+    console.warn('loadGastoConceptosSuggestions', e);
+  }
+}
+
+/** Días entre dos fechas YYYY-MM-DD. */
+function diasEntreComprasGasto(fechaReciente, fechaAnterior) {
+  const d1 = new Date(fechaReciente + 'T12:00:00');
+  const d2 = new Date(fechaAnterior + 'T12:00:00');
+  return Math.round(Math.abs(d1 - d2) / 86400000);
+}
+
+function gastoEscHtml(s) {
+  return typeof escapeRepHtml === 'function'
+    ? escapeRepHtml(s)
+    : String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function formatGastoFechaLabel(fecha) {
+  if (!fecha || fecha.length < 10) return fecha || '—';
+  const d = new Date(fecha + 'T12:00:00');
+  if (Number.isNaN(d.getTime())) return fecha;
+  return d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function calcGastoCostoPromedio(items) {
+  if (!items.length) return 0;
+  const sum = items.reduce((s, g) => s + (Number(g.monto) || 0), 0);
+  return sum / items.length;
+}
+
+/** Promedio de días entre compras consecutivas (orden cronológico). */
+function calcGastoFrecuenciaPromedioDias(items) {
+  if (items.length < 2) return null;
+  const asc = [...items].sort((a, b) => (a.fecha > b.fecha ? 1 : a.fecha < b.fecha ? -1 : 0));
+  let total = 0;
+  for (let i = 1; i < asc.length; i++) total += diasEntreComprasGasto(asc[i].fecha, asc[i - 1].fecha);
+  return Math.round(total / (asc.length - 1));
+}
+
+function renderGastoTimelineHtml(items) {
+  const esc = gastoEscHtml;
+  if (!items.length) return '<p class="gasto-timeline-empty">Sin compras registradas.</p>';
+  const sorted = [...items].sort((a, b) => (b.fecha > a.fecha ? 1 : b.fecha < a.fecha ? -1 : 0));
+  let html = '';
+  sorted.forEach((g, i) => {
+    html += `<article class="gasto-tl-block">
+      <span class="gasto-tl-node" aria-hidden="true"></span>
+      <div class="gasto-tl-card">
+        <div class="gasto-tl-fecha">${esc(formatGastoFechaLabel(g.fecha))}</div>
+        <div class="gasto-tl-monto">${$m(g.monto)}</div>
+      </div>
+    </article>`;
+    if (i < sorted.length - 1) {
+      const older = sorted[i + 1];
+      const dias = diasEntreComprasGasto(g.fecha, older.fecha);
+      html += `<div class="gasto-tl-gap"><span class="gasto-tl-badge">🛒 Comprado ${dias} día${dias === 1 ? '' : 's'} después</span></div>`;
+    }
+  });
+  return html;
+}
+
+function closeGastoAnalisisPanel() {
+  const bg = document.getElementById('gasto-panel-bg');
+  if (!bg) return;
+  bg.classList.remove('open');
+  bg.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('gasto-panel-open');
+}
+
+function initGastosTableInteraction() {
+  const tb = document.getElementById('tb-gastos');
+  if (!tb || tb.dataset.histBound === '1') return;
+  tb.dataset.histBound = '1';
+  tb.addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
+    const row = e.target.closest('tr[data-gasto-concepto]');
+    if (!row) return;
+    const raw = row.getAttribute('data-gasto-concepto');
+    if (!raw) return;
+    try {
+      openGastoAnalisisPanel(decodeURIComponent(raw));
+    } catch (err) {
+      openGastoAnalisisPanel(raw);
+    }
+  });
+  tb.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = e.target.closest('tr[data-gasto-concepto]');
+    if (!row || e.target.closest('button')) return;
+    e.preventDefault();
+    const raw = row.getAttribute('data-gasto-concepto');
+    if (raw) openGastoAnalisisPanel(decodeURIComponent(raw));
+  });
+}
+
+/** Pinta métricas y timeline de un concepto en los nodos indicados. */
+async function renderGastoAnalisisContent(concepto, els) {
+  const conc = (concepto || '').trim();
+  if (!conc || !els?.timeline) return;
+  const { title: titleEl, meta: metaEl, promedio: promedioEl, frecuencia: frecEl, timeline: timelineEl } = els;
+  if (titleEl) titleEl.textContent = conc;
+  if (metaEl) metaEl.textContent = 'Cargando historial…';
+  if (promedioEl) promedioEl.textContent = '…';
+  if (frecEl) frecEl.textContent = '…';
+  timelineEl.innerHTML = '<p class="gasto-timeline-loading">Consultando Firestore…</p>';
+  try {
+    const snap = await db.collection('gastos').where('concepto', '==', conc).get();
+    const items = snap.docs.map((d) => d.data());
+    const total = items.length;
+    if (metaEl) {
+      metaEl.textContent =
+        total === 0
+          ? 'Sin registros para este concepto'
+          : `${total} compra${total === 1 ? '' : 's'} registrada${total === 1 ? '' : 's'} en total`;
+    }
+    if (!total) {
+      if (promedioEl) promedioEl.textContent = '—';
+      if (frecEl) frecEl.textContent = '—';
+      timelineEl.innerHTML = '<p class="gasto-timeline-empty">Sin compras registradas.</p>';
+      return;
+    }
+    const costoProm = calcGastoCostoPromedio(items);
+    const freqDias = calcGastoFrecuenciaPromedioDias(items);
+    if (promedioEl) promedioEl.textContent = $m(costoProm);
+    if (frecEl) frecEl.textContent = freqDias != null ? `Cada ${freqDias} días` : '—';
+    timelineEl.innerHTML = renderGastoTimelineHtml(items);
+  } catch (e) {
+    if (metaEl) metaEl.textContent = 'Error al cargar datos';
+    timelineEl.innerHTML = `<p class="gasto-timeline-empty">Error: ${gastoEscHtml(e.message)}</p>`;
+  }
+}
+
+var analisisGastosConceptosCache = [];
+var analisisGastosSelectedConcepto = '';
+
+async function loadAnalisisGastos(opts) {
+  const listEl = document.getElementById('ag-conceptos-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<li class="ag-conceptos-loading">Cargando conceptos…</li>';
+  document.getElementById('ag-empty')?.removeAttribute('hidden');
+  const detalle = document.getElementById('ag-detalle');
+  if (detalle) detalle.hidden = true;
+  try {
+    const snap = await db.collection('gastos').get();
+    const map = new Map();
+    snap.docs.forEach((d) => {
+      const g = d.data();
+      const c = (g.concepto || '').trim();
+      if (!c) return;
+      if (!map.has(c)) map.set(c, { concepto: c, count: 0, total: 0, lastFecha: '' });
+      const row = map.get(c);
+      row.count += 1;
+      row.total += Number(g.monto) || 0;
+      if ((g.fecha || '') > row.lastFecha) row.lastFecha = g.fecha;
+    });
+    analisisGastosConceptosCache = [...map.values()].sort((a, b) =>
+      a.concepto.localeCompare(b.concepto, 'es')
+    );
+    filterAnalisisGastosConceptos();
+    const preselect = opts?.concepto && String(opts.concepto).trim();
+    if (preselect) await selectAnalisisGastoConcepto(preselect);
+  } catch (e) {
+    listEl.innerHTML = `<li class="ag-conceptos-empty">Error: ${gastoEscHtml(e.message)}</li>`;
+  }
+}
+
+function filterAnalisisGastosConceptos() {
+  const listEl = document.getElementById('ag-conceptos-list');
+  const q = (document.getElementById('ag-buscar')?.value || '').trim().toLowerCase();
+  if (!listEl) return;
+  const items = analisisGastosConceptosCache.filter((r) => !q || r.concepto.toLowerCase().includes(q));
+  if (!analisisGastosConceptosCache.length) {
+    listEl.innerHTML = '<li class="ag-conceptos-empty">No hay gastos registrados aún.</li>';
+    return;
+  }
+  if (!items.length) {
+    listEl.innerHTML = '<li class="ag-conceptos-empty">Ningún concepto coincide con la búsqueda.</li>';
+    return;
+  }
+  const esc = gastoEscHtml;
+  const active = analisisGastosSelectedConcepto;
+  listEl.innerHTML = items
+    .map((r) => {
+      const enc = encodeURIComponent(r.concepto);
+      const isActive = r.concepto === active ? ' active' : '';
+      return `<li class="ag-concepto-item${isActive}" role="option" tabindex="0" data-concepto="${enc}" onclick="selectAnalisisGastoConcepto(decodeURIComponent(this.dataset.concepto))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectAnalisisGastoConcepto(decodeURIComponent(this.dataset.concepto));}">
+        <span class="ag-concepto-name">${esc(r.concepto)}</span>
+        <span class="ag-concepto-meta">${r.count} compra${r.count === 1 ? '' : 's'} · ${$m(r.total)}</span>
+      </li>`;
+    })
+    .join('');
+}
+
+async function selectAnalisisGastoConcepto(concepto) {
+  const conc = (concepto || '').trim();
+  if (!conc) return;
+  analisisGastosSelectedConcepto = conc;
+  filterAnalisisGastosConceptos();
+  document.getElementById('ag-empty')?.setAttribute('hidden', '');
+  const detalle = document.getElementById('ag-detalle');
+  if (detalle) detalle.hidden = false;
+  await renderGastoAnalisisContent(conc, {
+    title: document.getElementById('ag-title'),
+    meta: document.getElementById('ag-meta'),
+    promedio: document.getElementById('ag-stat-promedio'),
+    frecuencia: document.getElementById('ag-stat-frecuencia'),
+    timeline: document.getElementById('ag-timeline'),
+  });
+}
+
+async function openGastoAnalisisPanel(concepto) {
+  const conc = (concepto || '').trim();
+  if (!conc) return;
+  const bg = document.getElementById('gasto-panel-bg');
+  if (!bg) return;
+  bg.classList.add('open');
+  bg.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('gasto-panel-open');
+  await renderGastoAnalisisContent(conc, {
+    title: document.getElementById('gasto-panel-title'),
+    meta: document.getElementById('gasto-panel-meta'),
+    promedio: document.getElementById('gasto-stat-promedio'),
+    frecuencia: document.getElementById('gasto-stat-frecuencia'),
+    timeline: document.getElementById('gasto-panel-timeline'),
+  });
+}
+
+/** Abre la vista completa de análisis (sidebar) con un concepto preseleccionado. */
+function goAnalisisGastoConcepto(concepto) {
+  go('analisis-gastos', { concepto });
+}
+
+/** @deprecated Usar openGastoAnalisisPanel */
+async function openGastoHistorialModal(concepto) {
+  return openGastoAnalisisPanel(concepto);
+}
+
 async function regGasto() {
   const fecha = document.getElementById('g-fecha').value,
     cat = document.getElementById('g-cat').value;
   const conc = document.getElementById('g-concepto').value.trim(),
     monto = parseFloat(document.getElementById('g-monto').value);
+  const semSel = document.getElementById('g-semana');
+  const semanaAsignada = parseInt(semSel?.value, 10) || semanaFromFechaStr(fecha);
   if (!fecha || !conc || !monto) {
     showToast('bad', '❌ Completa todos los campos.');
     return;
   }
   try {
-    await db.collection('gastos').add({ fecha, concepto: conc, monto, categoria: cat });
+    await db.collection('gastos').add({ fecha, concepto: conc, monto, categoria: cat, semanaAsignada });
     showToast('ok', '✅ Gasto registrado.');
     document.getElementById('g-concepto').value = '';
     document.getElementById('g-monto').value = '';
+    syncGastoSemanaFromFecha();
+    loadGastoConceptosSuggestions();
     loadGastos();
   } catch (e) {
     showToast('bad', '❌ Error: ' + e.message);
@@ -623,6 +920,10 @@ async function loadGastos() {
   if (inp && inp.value !== m) inp.value = m;
   const { start, end } = monthRange(m);
   const tb = document.getElementById('tb-gastos');
+  const esc =
+    typeof escapeRepHtml === 'function'
+      ? escapeRepHtml
+      : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   tb.innerHTML = '<tr><td colspan="5" style="text-align:center">Cargando…</td></tr>';
   try {
     const snap = await db.collection('gastos').where('fecha', '>=', start).where('fecha', '<=', end).orderBy('fecha', 'desc').get();
@@ -644,7 +945,14 @@ async function loadGastos() {
       .map((d) => {
         const g = d.data();
         const bc = g.categoria === 'Fijo' ? 'bdg-fijo' : 'bdg-op';
-        return `<tr><td>${g.fecha}</td><td>${g.concepto}</td><td><span class="bdg ${bc}">${g.categoria}</span></td><td><strong>${$m(g.monto)}</strong></td><td><button class="btn btn-bad btn-sm" onclick="delGasto('${d.id}')">🗑️</button></td></tr>`;
+        const concEnc = encodeURIComponent(g.concepto || '');
+        return `<tr class="gasto-row-hist" data-gasto-concepto="${concEnc}" tabindex="0" title="Ver análisis de compra">
+          <td>${esc(g.fecha)}</td>
+          <td class="gasto-conc-cell">${esc(g.concepto)}</td>
+          <td><span class="bdg ${bc}">${esc(g.categoria)}</span></td>
+          <td><strong>${$m(g.monto)}</strong></td>
+          <td><button type="button" class="btn btn-bad btn-sm" onclick="delGasto('${d.id}')">🗑️</button></td>
+        </tr>`;
       })
       .join('');
   } catch (e) {
@@ -654,6 +962,7 @@ async function loadGastos() {
 async function delGasto(id) {
   if (!confirm('¿Eliminar?')) return;
   await db.collection('gastos').doc(id).delete();
+  loadGastoConceptosSuggestions();
   loadGastos();
 }
 
@@ -787,26 +1096,37 @@ async function loadCierreResumenMes() {
         )
         .join('');
 
-    const sem = [0, 0, 0, 0];
+    const semVentas = [0, 0, 0, 0];
+    const semCom = [0, 0, 0, 0];
     ventas.forEach((v) => {
       const f = v.fecha || '';
       if (f.length < 10) return;
       const d = parseInt(f.slice(8, 10), 10);
       if (Number.isNaN(d) || d < 1 || d > 31) return;
       const wk = repWeekOfMonth(d);
-      sem[wk - 1] += ventaBrutaDesdeVenta(v);
+      semVentas[wk - 1] += ventaBrutaDesdeVenta(v);
+      semCom[wk - 1] += comisionDesdeVenta(v);
     });
+    const semGastos = [0, 0, 0, 0];
+    snapG.docs.forEach((d) => {
+      const g = d.data();
+      const wk = gastoSemanaAsignada(g);
+      semGastos[wk - 1] += g.monto || 0;
+    });
+    const semNeto = semVentas.map((vb, i) => vb - semCom[i] - semGastos[i]);
     const labels = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
     const last = repUltimoDiaMes(m);
     const periodos = ['Días 1 – 7', 'Días 8 – 14', 'Días 15 – 21', 'Días 22 – ' + last];
-    const maxV = Math.max(...sem, 0);
+    const maxN = Math.max(...semNeto, 0);
     semGrid.innerHTML = labels
       .map((lbl, i) => {
-        const isBest = maxV > 0 && sem[i] === maxV && sem[i] > 0;
+        const isBest = maxN > 0 && semNeto[i] === maxN && semNeto[i] > 0;
         return `<div class="cj-sem-box${isBest ? ' cj-sem-best' : ''}">
           <div class="cj-sem-lbl">${lbl}</div>
           <div class="cj-sem-sub">${periodos[i]}</div>
-          <div class="cj-sem-val">${$m(sem[i])}</div>
+          <div class="cj-sem-neto-lbl">Neto semanal</div>
+          <div class="cj-sem-val">${$m(semNeto[i])}</div>
+          <div class="cj-sem-gastos">Gastos: ${$m(semGastos[i])}</div>
           ${isBest ? '<div class="cj-sem-badge">Mejor semana</div>' : ''}
         </div>`;
       })
@@ -838,7 +1158,14 @@ async function loadCierreResumenMes() {
     if (edoG) edoG.textContent = $m(tg);
     if (edoN) edoN.textContent = $m(gananciaNeta);
     if (edoCard) edoCard.classList.toggle('cj-edo-neg', gananciaNeta < 0);
-    const semRows = labels.map((lbl, i) => ({ label: lbl, periodo: periodos[i], monto: sem[i] }));
+    const semRows = labels.map((lbl, i) => ({
+      label: lbl,
+      periodo: periodos[i],
+      monto: semNeto[i],
+      ventas: semVentas[i],
+      comisiones: semCom[i],
+      gastos: semGastos[i],
+    }));
     cierreMesSnapshot = {
       monthKey: m,
       periodoLabel: periodoTxt,
