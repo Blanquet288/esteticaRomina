@@ -462,6 +462,7 @@
         <button class="tab" onclick="switchTab('empleadas',this)">👩‍💼 Empleadas</button>
         <button class="tab" onclick="switchTab('servicios',this)">🗂️ Servicios Estrella</button>
         <button class="tab" onclick="switchTab('gastos',this)">🧾 Gastos</button>
+        <button class="tab" data-rep-tab="productividad" onclick="switchTab('productividad',this)">🏆 Ranking Productividad</button>
       </div>
       <div id="rt-ventas">
         <div class="al al-info" style="margin-bottom:18px">
@@ -525,6 +526,66 @@
             </div>
           </div>
         </div>
+      </div>
+      <div id="rt-productividad" class="de-in-reportes" style="display:none">
+        <p class="de-intro">Ranking por cantidad de servicios realizados — sin montos ni comisiones. Usa el rango de fechas de abajo (independiente del mes global de reportes).</p>
+        <div class="card de-filtros-card">
+          <div class="card-h"><span>📅</span> Rango de fechas</div>
+          <div class="frow de-filtros-row">
+            <div class="field">
+              <label for="de-f-inicio">Fecha inicio</label>
+              <input type="date" id="de-f-inicio">
+            </div>
+            <div class="field">
+              <label for="de-f-fin">Fecha fin</label>
+              <input type="date" id="de-f-fin">
+            </div>
+            <div class="field de-filtro-btn-wrap de-filtro-actions">
+              <label>&nbsp;</label>
+              <div class="de-btn-row">
+                <button type="button" class="btn btn-p" onclick="filtrarDesempenoEquipo()">🔍 Filtrar</button>
+                <button type="button" class="btn btn-p" onclick="exportarDesempenoPDF()">📄 Exportar a PDF</button>
+              </div>
+            </div>
+          </div>
+          <p class="de-periodo-lbl" id="de-periodo-lbl"></p>
+        </div>
+        <header class="de-print-header" id="de-print-header" aria-hidden="true">
+          <h1 class="de-print-title">Ranking de Productividad</h1>
+          <p class="de-print-sub" id="de-print-sub"></p>
+          <p class="de-print-note">Solo cantidad de servicios — sin montos ni comisiones</p>
+        </header>
+        <div id="de-loading" class="de-loading" style="display:none">Cargando datos…</div>
+        <div id="de-empty" class="de-empty" style="display:none">
+          <div class="de-empty-ico">🏆</div>
+          <p>No hay servicios registrados en este periodo.</p>
+        </div>
+        <div id="de-charts-wrap" class="de-charts-wrap" style="display:none">
+          <div class="de-charts-grid">
+            <div class="card de-chart-card">
+              <div class="card-h"><span>🍩</span> Participación total del equipo</div>
+              <p class="de-chart-desc">Porcentaje de servicios realizados por empleada en el periodo.</p>
+              <div class="de-chart-canvas de-chart-canvas--dona">
+                <canvas id="de-chart-dona" aria-label="Gráfica de dona por empleada"></canvas>
+              </div>
+            </div>
+            <div class="card de-chart-card de-chart-card--wide">
+              <div class="card-h"><span>📊</span> Top 5 servicios</div>
+              <p class="de-chart-desc">Comparativa por empleada en los servicios más realizados.</p>
+              <div class="de-chart-canvas de-chart-canvas--bars">
+                <canvas id="de-chart-barras" aria-label="Gráfica de barras top 5 servicios"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="de-cards-toolbar" class="de-cards-toolbar" style="display:none">
+          <h3 class="de-section-title">Ranking por servicio</h3>
+          <label class="de-select-all-lbl">
+            <input type="checkbox" id="de-select-all" class="pdf-checkbox de-card-print-cb" checked onchange="deToggleSelectAllCards(this.checked)">
+            <span>Seleccionar todas para exportar</span>
+          </label>
+        </div>
+        <div id="de-grid" class="de-grid"></div>
       </div>
     </section>
 
@@ -977,6 +1038,7 @@
 <script defer src="js/ventas.js"></script>
 <script defer src="js/admin-movimientos.js"></script>
 <script defer src="js/reportes.js"></script>
+<script defer src="js/desempeno-equipo.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script defer src="js/app.js"></script>
 <script defer src="js/historico-diario.js"></script>

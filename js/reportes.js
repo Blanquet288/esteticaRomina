@@ -19,16 +19,31 @@ function navigateRepWeekToAdmin(weekNum) {
   go('admin');
 }
 
+const REP_TAB_IDS = ['ventas', 'empleadas', 'servicios', 'gastos', 'productividad'];
+
+function setRepTabVisible(tabId) {
+  REP_TAB_IDS.forEach((id) => {
+    const el = document.getElementById(`rt-${id}`);
+    if (el) el.style.display = id === tabId ? 'block' : 'none';
+  });
+}
+
 function switchTab(t, btn) {
   repTab = t;
-  document.querySelectorAll('.tab').forEach((el) => el.classList.remove('on'));
-  btn.classList.add('on');
-  ['ventas', 'empleadas', 'servicios', 'gastos'].forEach((id) => {
-    document.getElementById(`rt-${id}`).style.display = id === t ? 'block' : 'none';
-  });
+  document.querySelectorAll('#pg-reportes .tabs .tab').forEach((el) => el.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  else document.querySelector(`#pg-reportes .tabs .tab[data-rep-tab="${t}"]`)?.classList.add('on');
+  setRepTabVisible(t);
+  if (t === 'productividad') {
+    if (typeof loadDesempenoEquipo === 'function') loadDesempenoEquipo();
+    return;
+  }
   loadReportes();
 }
+
 async function loadReportes() {
+  if (repTab === 'productividad') return;
+
   const inp = document.getElementById('rep-m');
   let m = normalizeMonthYYYYMM(inp?.value) || curMonth();
   if (inp && inp.value !== m) inp.value = m;

@@ -453,6 +453,96 @@ body.gasto-panel-open{overflow:hidden}
 .gasto-tl-badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:20px;background:rgba(201,147,106,.12);color:var(--accent-dk);border:1px solid rgba(201,147,106,.25)}
 .gasto-timeline-empty,.gasto-timeline-loading{text-align:center;padding:32px 16px;color:var(--text2);font-size:13.5px}
 @media(max-width:480px){.gasto-panel{width:100vw}.gasto-panel-stats{grid-template-columns:1fr}}
+/* Ranking productividad (sub-pestaña Reportes) */
+.de-in-reportes .de-intro{margin-top:0}
+#pg-reportes #rt-productividad .de-card{background:var(--surface);border-color:var(--border);box-shadow:0 2px 12px rgba(27,27,47,.06)}
+#pg-reportes #rt-productividad .de-rank-row{background:var(--bg)}
+.de-intro{font-size:13.5px;color:var(--text2);margin:-6px 0 18px;line-height:1.5;max-width:760px}
+.de-filtros-card{margin-bottom:20px}
+.de-filtros-row{align-items:flex-end}
+.de-btn-row{display:flex;flex-wrap:wrap;gap:10px;width:100%}
+.de-btn-row .btn{flex:1;min-width:140px}
+.de-periodo-lbl{font-size:12.5px;color:var(--text2);margin-top:10px}
+.de-loading{text-align:center;padding:28px;color:var(--text2);font-size:14px}
+.de-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 20px;color:var(--text2);margin-top:8px}
+.de-empty-ico{font-size:42px;margin-bottom:10px}
+.de-error{text-align:center;color:var(--bad);padding:20px}
+.de-charts-wrap{margin-bottom:22px}
+.de-charts-grid{display:grid;grid-template-columns:1fr 1.35fr;gap:18px;align-items:stretch}
+@media(max-width:960px){.de-charts-grid{grid-template-columns:1fr}}
+.de-chart-card{height:100%;display:flex;flex-direction:column}
+.de-chart-desc{font-size:12px;color:var(--text2);margin:-8px 0 12px;line-height:1.45}
+.de-chart-canvas{position:relative;flex:1;min-height:220px}
+.de-chart-canvas--dona{max-height:280px}
+.de-chart-canvas--bars{min-height:300px}
+.de-cards-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 14px}
+.de-section-title{font-size:16px;font-weight:700;color:var(--text);margin:0}
+.de-select-all-lbl{display:inline-flex;align-items:center;gap:10px;font-size:13px;color:var(--text2);cursor:pointer;user-select:none}
+.de-select-all-lbl input{accent-color:var(--accent)}
+.de-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;margin-top:4px}
+.de-card{background:#fff;border:2px solid var(--border);border-radius:14px;padding:20px 18px 16px;box-shadow:0 4px 20px rgba(27,27,47,.08);position:relative;transition:border-color .2s ease,box-shadow .2s ease,opacity .2s}
+.de-card:hover{border-color:var(--accent);box-shadow:0 8px 32px rgba(201,147,106,.18)}
+.de-card.no-print{opacity:.45}
+.de-card-select{position:absolute;top:14px;right:14px;cursor:pointer;z-index:2}
+.de-card-select input{position:absolute;opacity:0;width:0;height:0}
+.de-card-select-ui{display:flex;width:22px;height:22px;border:2px solid var(--border);border-radius:6px;background:#fff;align-items:center;justify-content:center;transition:var(--tr);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.de-card-select input:checked+.de-card-select-ui{background:var(--accent);border-color:var(--accent-dk)}
+.de-card-select input:checked+.de-card-select-ui::after{content:'✓';color:#fff;font-size:13px;font-weight:700;line-height:1}
+.de-card-title{font-size:14px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--text);margin:0 36px 6px 0;padding-bottom:12px;border-bottom:3px solid var(--accent-lt)}
+.de-card-total{font-size:12px;color:var(--text2);margin-bottom:14px}
+.de-rank-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.de-rank-row{display:grid;grid-template-columns:32px 1fr auto;grid-template-rows:auto auto;gap:6px 12px;align-items:center;padding:12px 12px 10px;border-radius:10px;background:#f9f7f4;border:1px solid var(--border)}
+.de-rank-row.de-rank-top{background:linear-gradient(90deg,rgba(255,215,0,.22) 0%,#fff 60%);border-color:rgba(255,193,7,.35)}
+.de-rank-row.de-rank-second{background:linear-gradient(90deg,rgba(192,192,192,.18) 0%,#fff 60%);border-color:rgba(160,160,160,.3)}
+.de-rank-row.de-rank-third{background:linear-gradient(90deg,rgba(205,127,50,.16) 0%,#fff 60%);border-color:rgba(201,147,106,.35)}
+.de-medal-wrap{grid-row:span 2;font-size:1.4rem;line-height:1;display:flex;align-items:center;justify-content:center}
+.de-medal-empty{opacity:.3;font-size:1rem}
+.de-rank-name{font-weight:600;font-size:14.5px;color:var(--text)}
+.de-rank-qty{font-weight:800;font-size:22px;color:var(--text);font-variant-numeric:tabular-nums;line-height:1}
+.de-bar-track{grid-column:2/4;height:10px;background:#ede8e1;border-radius:8px;overflow:hidden}
+.de-bar-fill{display:block;height:100%;border-radius:8px;transition:width .4s cubic-bezier(.4,0,.2,1);box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.de-print-header{display:none}
+@media(max-width:600px){.de-filtros-row{flex-direction:column}.de-btn-row .btn{width:100%}}
+/* Impresión / PDF selectivo — Desempeño del Equipo */
+@media print{
+  @page{size:A4 portrait;margin:14mm 12mm}
+  body.de-printing{background:#fff!important}
+  body.de-printing #sb,
+  body.de-printing .sb-toggle,
+  body.de-printing #topbar,
+  body.de-printing .de-intro,
+  body.de-printing .de-filtros-card,
+  body.de-printing .de-loading,
+  body.de-printing .de-empty,
+  body.de-printing .de-cards-toolbar,
+  body.de-printing .de-card-select,
+  body.de-printing .no-print{display:none!important}
+  body.de-printing #main,
+  body.de-printing .pg,
+  body.de-printing #pg-reportes{display:block!important;width:100%!important;margin:0!important;padding:0!important}
+  body.de-printing #pg-reportes .tabs,
+  body.de-printing #pg-reportes .sec-head,
+  body.de-printing #pg-reportes #rt-ventas,
+  body.de-printing #pg-reportes #rt-empleadas,
+  body.de-printing #pg-reportes #rt-servicios,
+  body.de-printing #pg-reportes #rt-gastos{display:none!important}
+  body.de-printing #pg-reportes #rt-productividad{display:block!important}
+  body.de-printing .pg:not(#pg-reportes){display:none!important}
+  body.de-printing .sec-head{display:none!important}
+  body.de-printing .de-print-header{display:block!important;text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #ccc}
+  body.de-printing .de-print-title{font-family:'Cormorant Garamond',serif;font-size:22pt;margin:0 0 6px;color:#1b1b2f}
+  body.de-printing .de-print-sub{font-size:11pt;color:#444;margin:0}
+  body.de-printing .de-print-note{font-size:9pt;color:#666;margin-top:4px}
+  body.de-printing .de-charts-wrap{display:block!important;margin-bottom:18px;page-break-inside:avoid}
+  body.de-printing .de-charts-grid{grid-template-columns:1fr 1.2fr;gap:12px}
+  body.de-printing .de-chart-card{box-shadow:none;border:1px solid #ddd;page-break-inside:avoid}
+  body.de-printing .de-chart-canvas{min-height:180px!important;max-height:200px!important}
+  body.de-printing .de-chart-canvas--bars{min-height:200px!important}
+  body.de-printing .de-grid{display:grid!important;grid-template-columns:repeat(2,1fr)!important;gap:12px!important}
+  body.de-printing .de-card{break-inside:avoid;box-shadow:none;border:1px solid #ccc;padding:12px}
+  body.de-printing .de-card-title{font-size:11pt;margin-right:0}
+  body.de-printing .de-rank-qty{font-size:14pt}
+}
 /* Vista completa: Análisis de Gastos (SPA) */
 .ag-intro{font-size:13.5px;color:var(--text2);margin:-6px 0 18px;line-height:1.5;max-width:720px}
 .ag-layout{display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:18px;align-items:start}

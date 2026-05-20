@@ -118,6 +118,9 @@ const pageMap = {
   config: ['Configuración', 'Ajustes del sistema'],
 };
 async function go(sec, opts) {
+  if (sec === 'desempeno-equipo') {
+    return go('reportes', { ...(opts || {}), repTab: 'productividad' });
+  }
   if (sec === 'admin' && opts && opts.clearAdminDrill && typeof adminDrillFilter !== 'undefined') {
     adminDrillFilter = null;
     const b = document.getElementById('adm-drill-banner');
@@ -159,8 +162,14 @@ async function go(sec, opts) {
   else if (sec === 'catalogo') loadCatalogo();
   else if (sec === 'empleados') loadEmps();
   else if (sec === 'ahorros') loadAhorros();
-  else if (sec === 'reportes') loadReportes();
-  else if (sec === 'analisis-gastos') await loadAnalisisGastos(opts);
+  else if (sec === 'reportes') {
+    if (opts && opts.repTab && typeof switchTab === 'function') {
+      const tabBtn = document.querySelector(`#pg-reportes .tabs .tab[data-rep-tab="${opts.repTab}"]`);
+      switchTab(opts.repTab, tabBtn || null);
+    } else {
+      loadReportes();
+    }
+  } else if (sec === 'analisis-gastos') await loadAnalisisGastos(opts);
   else if (sec === 'cierre') await loadCierreResumenMes();
   else if (sec === 'admin') await loadAdminMovimientos();
   else if (sec === 'config') {
