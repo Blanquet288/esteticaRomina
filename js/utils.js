@@ -36,7 +36,7 @@ function monthRange(m) {
 }
 /** Inicializa todos los `<input type="month">` del sistema con el mes calendario actual. */
 function initMonthInputs() {
-  const ids = ['v-mf', 'g-mf', 'rep-m', 'cj-m', 'adm-m'];
+  const ids = ['v-mf', 'g-mf', 'rep-m', 'cj-m', 'adm-m', 'arq-m'];
   const def = curMonth();
   ids.forEach((id) => {
     const el = document.getElementById(id);

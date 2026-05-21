@@ -113,6 +113,7 @@ const pageMap = {
   ahorros: ['Fondo de Ahorros', 'Control del ahorro empresarial'],
   reportes: ['Reportes y Estadísticas', 'Análisis de desempeño mensual'],
   'analisis-gastos': ['Análisis de Gastos', 'Historial, costo promedio y ciclo de compra por concepto'],
+  'caja-cierres': ['Caja y Cierres', 'Arqueo físico, cuadre de caja y reparto mensual'],
   cierre: ['Cierre de Caja', 'Cálculo de ganancias y distribución'],
   admin: ['Administrar Datos', 'Gestor de movimientos del mes'],
   config: ['Configuración', 'Ajustes del sistema'],
@@ -169,7 +170,8 @@ async function go(sec, opts) {
     } else {
       loadReportes();
     }
-  } else if (sec === 'analisis-gastos') await loadAnalisisGastos(opts);
+  }   else if (sec === 'analisis-gastos') await loadAnalisisGastos(opts);
+  else if (sec === 'caja-cierres') await loadCajaCierres();
   else if (sec === 'cierre') await loadCierreResumenMes();
   else if (sec === 'admin') await loadAdminMovimientos();
   else if (sec === 'config') {

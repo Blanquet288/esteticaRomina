@@ -28,11 +28,38 @@ function setRepTabVisible(tabId) {
   });
 }
 
+function repMedalEmoji(rankIndex) {
+  if (rankIndex === 0) return '\uD83E\uDD47';
+  if (rankIndex === 1) return '\uD83E\uDD48';
+  if (rankIndex === 2) return '\uD83E\uDD49';
+  return '';
+}
+
+/** Opciones html2pdf (escala 2x) para reportes ejecutivos. */
+function repHtml2pdfOptions(filename) {
+  return {
+    margin: [12, 12, 14, 12],
+    filename: filename || 'Reporte_Estetica_Romina.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      letterRendering: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: 0,
+    },
+    jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['.rep-intel-card', '.rep-emp-card', '.de-pdf-sec-avoid'] },
+  };
+}
+
 function switchTab(t, btn) {
   repTab = t;
-  document.querySelectorAll('#pg-reportes .tabs .tab').forEach((el) => el.classList.remove('on'));
+  document.querySelectorAll('#pg-reportes .rep-tabs .tab').forEach((el) => el.classList.remove('on'));
   if (btn) btn.classList.add('on');
-  else document.querySelector(`#pg-reportes .tabs .tab[data-rep-tab="${t}"]`)?.classList.add('on');
+  else document.querySelector(`#pg-reportes .rep-tabs .tab[data-rep-tab="${t}"]`)?.classList.add('on');
   setRepTabVisible(t);
   if (t === 'productividad') {
     if (typeof loadDesempenoEquipo === 'function') loadDesempenoEquipo();
@@ -201,9 +228,49 @@ function renderRepEmpsTable(ventas, weekVal) {
   tb.innerHTML = rows
     .map(
       (e) =>
-        `<tr><td><strong>${e.nombre}</strong></td><td>${e.svcs}</td><td>${$m(e.total)}</td><td style="color:var(--warn)">${$m(e.com)}</td><td style="color:var(--ok)">${$m(e.util)}</td></tr>`
+        `<tr><td><strong>${escapeRepHtml(e.nombre)}</strong></td><td>${e.svcs}</td><td>${$m(e.total)}</td><td style="color:var(--warn)">${$m(e.com)}</td><td style="color:var(--ok)">${$m(e.util)}</td></tr>`
     )
     .join('');
+
+  const cardsRoot = document.getElementById('rep-emp-cards-root');
+  if (cardsRoot) {
+    if (!rows.length) {
+      cardsRoot.innerHTML =
+        '<p class="rep-emp-cards-empty">Sin movimientos de empleadas en el periodo seleccionado.</p>';
+    } else {
+      cardsRoot.innerHTML = rows
+        .map((e, i) => {
+          const medal = repMedalEmoji(i);
+          const topCls = i < 3 ? ' rep-emp-card--top' + (i + 1) : '';
+          return (
+            '<article class="rep-emp-card' +
+            topCls +
+            '">' +
+            '<div class="rep-emp-card-head">' +
+            (medal ? '<span class="rep-emp-medal" aria-hidden="true">' + medal + '</span>' : '<span class="rep-emp-medal rep-emp-medal--empty" aria-hidden="true">·</span>') +
+            '<h3 class="rep-emp-name">' +
+            escapeRepHtml(e.nombre) +
+            '</h3></div>' +
+            '<div class="rep-emp-metrics">' +
+            '<div class="rep-emp-metric"><span class="rep-emp-metric-lbl">Movimientos</span><span class="rep-emp-metric-val">' +
+            e.svcs +
+            '</span></div>' +
+            '<div class="rep-emp-metric rep-emp-metric--util"><span class="rep-emp-metric-lbl">Utilidad neta</span><span class="rep-emp-metric-val">' +
+            $m(e.util) +
+            '</span></div>' +
+            '<div class="rep-emp-metric rep-emp-metric--sec"><span class="rep-emp-metric-lbl">Bruto</span><span class="rep-emp-metric-val">' +
+            $m(e.total) +
+            '</span></div>' +
+            '<div class="rep-emp-metric rep-emp-metric--sec"><span class="rep-emp-metric-lbl">Comisión</span><span class="rep-emp-metric-val rep-emp-metric-val--warn">' +
+            $m(e.com) +
+            '</span></div>' +
+            '</div></article>'
+          );
+        })
+        .join('');
+    }
+  }
+
   const footerMap = { 1: 'Total · Semana 1 (días 1–7)', 2: 'Total · Semana 2 (días 8–14)', 3: 'Total · Semana 3 (días 15–21)', 4: 'Total · Semana 4 (días 22 al fin de mes)' };
   const footerLabel = weekVal && weekVal !== '0' ? footerMap[weekVal] || 'Total periodo' : 'Total mes';
   if (tf) {
@@ -356,14 +423,19 @@ function renderChVentas(ventas) {
         const pct = totalMes > 0 ? ((bruto / totalMes) * 100).toFixed(1) : '0.0';
         const wk = i + 1;
         const kbd = `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigateRepWeekToAdmin(${wk});}"`;
-        return `<div class="rep-week-card rep-sem-row" role="button" tabindex="0" onclick="navigateRepWeekToAdmin(${wk})" ${kbd}>
-          <div class="rep-week-card-top">
-            <span class="rep-week-card-title">${lbl}</span>
-            <span class="rep-week-card-dates">${periodos[i]}</span>
+        const com = semCom[i] || 0;
+        return `<div class="rep-intel-card rep-sem-row" role="button" tabindex="0" onclick="navigateRepWeekToAdmin(${wk})" ${kbd}>
+          <div class="rep-intel-head">
+            <span class="rep-intel-title">${lbl}</span>
+            <span class="rep-intel-dates">Días ${periodos[i]}</span>
           </div>
-          <div class="rep-week-card-bruto">Bruto: ${$m(bruto)}</div>
-          <div class="rep-week-card-neto">Neto: ${$m(neto)}</div>
-          <div class="rep-week-card-pct">${pct}% del mes (bruto)</div>
+          <div class="rep-intel-neto">${$m(neto)}</div>
+          <span class="rep-intel-neto-lbl">Ganancia neta</span>
+          <div class="rep-intel-secondary">
+            <span class="rep-intel-meta"><span class="rep-intel-meta-lbl">Bruto</span> ${$m(bruto)}</span>
+            <span class="rep-intel-meta"><span class="rep-intel-meta-lbl">Comisiones</span> ${$m(com)}</span>
+          </div>
+          <div class="rep-intel-pct">${pct}% del mes (bruto)</div>
         </div>`;
       })
       .join('');
@@ -440,6 +512,9 @@ function renderChVentas(ventas) {
       },
     },
   });
+  setTimeout(() => {
+    if (chVentas) chVentas.resize();
+  }, 150);
 }
 function renderRepSvcs(ventas) {
   const st = {};
@@ -505,6 +580,9 @@ function renderRepSvcs(ventas) {
       },
     },
   });
+  setTimeout(() => {
+    if (chSvcs) chSvcs.resize();
+  }, 120);
   tb.innerHTML = sorted.map((s, i) => `<tr><td><strong>#${i + 1}</strong></td><td>${s.nombre}</td><td>${s.count}</td><td><strong>${$m(s.total)}</strong></td></tr>`).join('');
 }
 function renderRepGastos(gastos) {
@@ -524,6 +602,9 @@ function renderRepGastos(gastos) {
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
   });
+  setTimeout(() => {
+    if (chGastos) chGastos.resize();
+  }, 120);
   const tb = document.getElementById('tb-rep-gas');
   tb.innerHTML = gastos
     .map((g) => {

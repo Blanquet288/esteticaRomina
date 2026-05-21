@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <link rel="stylesheet" href="css/pdf-cierre.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -78,6 +79,7 @@
         <div class="sb-group-items">
           <div class="nav-it" onclick="go('reportes')" data-s="reportes"><span class="nav-ic">📊</span><span class="nav-lbl">Reportes</span></div>
           <div class="nav-it" onclick="go('analisis-gastos')" data-s="analisis-gastos"><span class="nav-ic">📉</span><span class="nav-lbl">Análisis de Gastos</span></div>
+          <div class="nav-it" onclick="go('caja-cierres')" data-s="caja-cierres"><span class="nav-ic">💵</span><span class="nav-lbl">Caja y Cierres</span></div>
           <div class="nav-it" onclick="go('cierre')" data-s="cierre"><span class="nav-ic">🔒</span><span class="nav-lbl">Cierre de Caja</span></div>
         </div>
       </div>
@@ -210,7 +212,6 @@
     <section class="pg" id="pg-masiva">
       <div class="sec-head">
         <h2 class="sec-title">Corte por Empleada</h2>
-        <div class="al al-info" style="margin-bottom:0;font-size:12.5px">⚡ Captura múltiples servicios de un día de trabajo en una sola pantalla</div>
       </div>
       <div class="card" style="margin-bottom:18px">
         <div class="card-h"><span>📋</span> Datos del Corte</div>
@@ -267,9 +268,6 @@
       <div class="sec-head">
         <h2 class="sec-title">Registro Histórico Diario</h2>
       </div>
-      <div class="al al-info" style="margin-bottom:18px">
-        Registra en un solo paso el <strong>total del día</strong> por empleada (días pasados sin detalle de cortes). Se guarda en ventas con <code style="font-size:12px;background:var(--bg);padding:2px 6px;border-radius:4px">tipo: historico_diario</code> para distinguirlo de ventas por servicio.
-      </div>
       <div class="card" style="max-width:640px">
         <div class="card-h"><span>📅</span> Nuevo resumen de día</div>
         <div class="frow x3">
@@ -295,7 +293,6 @@
         <h2 class="sec-title">Catálogo de Servicios</h2>
         <button class="btn btn-p" onclick="openCatModal()">➕ Nuevo Servicio</button>
       </div>
-      <div class="al al-info">💡 Cuando edites el precio o comisión de un servicio, <strong>las ventas ya registradas no se modifican</strong>. El porcentaje usado en cada venta queda guardado de forma permanente.</div>
       <div id="cat-grid-wrap" style="margin-top:18px">
         <div class="ld"><div class="spin"></div></div>
       </div>
@@ -433,9 +430,6 @@
           <input type="month" id="adm-m" class="inp-month" onchange="onAdminMesChange()" title="Elegir mes y año">
         </div>
       </div>
-      <div class="al al-info" style="margin-bottom:16px">
-        <span>ℹ️</span> Movimientos agrupados por día. Expande cada día para ver el detalle. Las ediciones se guardan en Firestore al instante.
-      </div>
       <div id="adm-drill-banner" class="adm-drill-banner" style="display:none">
         <span id="adm-drill-txt"></span>
         <button type="button" class="btn btn-s btn-sm" onclick="clearAdminDrillFilter()">Quitar filtro de semana</button>
@@ -453,40 +447,35 @@
 
     <!-- ── REPORTES ── -->
     <section class="pg" id="pg-reportes">
-      <div class="sec-head">
+      <div class="sec-head rep-no-print">
         <h2 class="sec-title">Reportes y Estadísticas</h2>
-        <div class="month-sel" style="margin-bottom:0"><input type="month" id="rep-m" class="inp-month" onchange="loadReportes()" title="Elegir mes y año"></div>
+        <div class="month-sel rep-month-sel" style="margin-bottom:0"><input type="month" id="rep-m" class="inp-month" onchange="loadReportes()" title="Elegir mes y año"></div>
       </div>
-      <div class="tabs">
-        <button class="tab on" onclick="switchTab('ventas',this)">📊 Ventas</button>
-        <button class="tab" onclick="switchTab('empleadas',this)">👩‍💼 Empleadas</button>
-        <button class="tab" onclick="switchTab('servicios',this)">🗂️ Servicios Estrella</button>
-        <button class="tab" onclick="switchTab('gastos',this)">🧾 Gastos</button>
-        <button class="tab" data-rep-tab="productividad" onclick="switchTab('productividad',this)">🏆 Ranking Productividad</button>
+      <div class="tabs tab-scroll rep-tabs rep-no-print" role="tablist" aria-label="Secciones de reportes">
+        <button type="button" class="tab on" data-rep-tab="ventas" onclick="switchTab('ventas',this)">📊 Ventas</button>
+        <button type="button" class="tab" data-rep-tab="empleadas" onclick="switchTab('empleadas',this)">👩‍💼 Empleadas</button>
+        <button type="button" class="tab" data-rep-tab="servicios" onclick="switchTab('servicios',this)">🗂️ Servicios</button>
+        <button type="button" class="tab" data-rep-tab="gastos" onclick="switchTab('gastos',this)">🧾 Gastos</button>
+        <button type="button" class="tab" data-rep-tab="productividad" onclick="switchTab('productividad',this)">🏆 Ranking</button>
       </div>
       <div id="rt-ventas">
-        <div class="al al-info" style="margin-bottom:18px">
-          <span>ℹ️</span> Las cifras del mes incluyen <strong>todas</strong> las ventas en Firestore: servicios individuales, cortes por línea y registros <span class="bdg bdg-info">histórico diario</span> (resumen de día).
-        </div>
-        <div class="g2">
-          <div class="card">
-            <div class="card-h"><span>📊</span> Suma semanal del mes</div>
-            <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45">Total <strong>bruto vendido</strong> por bloques del calendario (Semana 1 a 4). El desglose a la derecha incluye la <strong>ganancia neta</strong> por semana. La gráfica apila por <strong>empleada</strong> (leyenda inferior); la altura total de cada barra coincide con la suma bruta de la tabla.</p>
-            <div class="ch-wrap rep-ch-wrap" title="Clic en una barra: abrir Administrar Datos filtrado por esa semana"><canvas id="ch-vsem"></canvas></div>
+        <div class="rep-ventas-stack">
+          <div class="card rep-chart-card">
+            <div class="card-h"><span>📊</span> Ventas por semana (apilado por empleada)</div>
+            <p class="rep-card-desc">Toque una barra para abrir <strong>Administrar Datos</strong> filtrado por esa semana.</p>
+            <div class="ch-wrap rep-ch-wrap rep-ch-wrap--stacked" title="Clic en una barra: Administrar Datos por semana"><canvas id="ch-vsem"></canvas></div>
           </div>
-          <div class="card">
-            <div class="card-h"><span>📋</span> Desglose por semanas</div>
-            <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45">
-              Cada bloque muestra la <strong>venta bruta</strong> (facturación con comisiones incluidas) y la <strong>ganancia neta</strong> del negocio en esas fechas: bruto menos comisiones pagadas a empleadas. Clic en una tarjeta abre <strong>Administrar Datos</strong> filtrado por esa semana.
-            </p>
+          <div class="card rep-intel-card-wrap">
+            <div class="card-h"><span>💡</span> Ganancia neta por semana</div>
+            <p class="rep-card-desc">La <strong>ganancia neta</strong> es lo que queda para la estética (bruto menos comisiones). Toque una tarjeta para ver el detalle en administración.</p>
             <div id="rep-week-cards-root" class="rep-week-cards-root" title="Clic: Administrar Datos filtrado por esa semana"></div>
           </div>
         </div>
       </div>
       <div id="rt-empleadas" style="display:none">
         <div class="card">
-          <div class="card-h rep-emp-card-h" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-            <span><span>👩‍💼</span> Rendimiento detallado por empleada</span>
+          <div class="card-h rep-emp-card-h">
+            <span class="rep-emp-card-h-title"><span>👩‍💼</span> Rendimiento por empleada</span>
             <select id="rep-emps-week" class="rep-emps-week-sel" title="Filtrar totales por bloque del mes" aria-label="Semana del mes">
               <option value="0">Todo el mes</option>
               <option value="1">Semana 1 (días 1–7)</option>
@@ -495,10 +484,11 @@
               <option value="4">Semana 4 (días 22 al fin de mes)</option>
             </select>
           </div>
-          <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px;line-height:1.45">Mismo mes seleccionado arriba. <strong>Total bruto</strong> = suma de <code style="font-size:11px">monto</code>; <strong>comisión</strong> = lo retenido por la empleada; <strong>utilidad neta</strong> = lo que queda para la estética (incluye ventas sueltas y resúmenes diarios).</p>
-          <div class="tbl-wrap">
-            <table>
-              <thead><tr><th>Empleada</th><th>Movimientos</th><th>Total bruto generado</th><th>Total comisión</th><th>Utilidad neta (estética)</th></tr></thead>
+          <p class="rep-card-desc rep-no-print">Ordenado por facturación bruta. Las tres primeras reciben medalla en el ranking visual.</p>
+          <div id="rep-emp-cards-root" class="rep-emp-cards-root" aria-label="Ranking visual de empleadas"></div>
+          <div class="tbl-wrap rep-emp-table-wrap">
+            <table class="rep-emp-table">
+              <thead><tr><th>Empleada</th><th>Movimientos</th><th>Total bruto</th><th>Comisión</th><th>Utilidad neta</th></tr></thead>
               <tbody id="tb-rep-emps"></tbody>
               <tfoot id="tf-rep-emps" style="font-weight:700;background:var(--bg)"></tfoot>
             </table>
@@ -506,19 +496,19 @@
         </div>
       </div>
       <div id="rt-servicios" style="display:none">
-        <div class="g2">
-          <div class="card"><div class="card-h"><span>⭐</span> Servicios más Vendidos</div><div class="ch-wrap"><canvas id="ch-svcs"></canvas></div></div>
+        <div class="rep-tab-stack">
+          <div class="card rep-chart-card"><div class="card-h"><span>⭐</span> Servicios más vendidos</div><div class="ch-wrap rep-ch-wrap rep-ch-wrap--hbar"><canvas id="ch-svcs"></canvas></div></div>
           <div class="card">
-            <div class="card-h"><span>📋</span> Ranking de Servicios</div>
-            <div class="tbl-wrap">
-              <table><thead><tr><th>#</th><th>Servicio</th><th>Ventas</th><th>Total Generado</th></tr></thead><tbody id="tb-rep-svcs"></tbody></table>
+            <div class="card-h"><span>📋</span> Ranking de servicios</div>
+            <div class="tbl-wrap rep-svc-table-wrap">
+              <table><thead><tr><th>#</th><th>Servicio</th><th>Ventas</th><th>Total</th></tr></thead><tbody id="tb-rep-svcs"></tbody></table>
             </div>
           </div>
         </div>
       </div>
       <div id="rt-gastos" style="display:none">
-        <div class="g2">
-          <div class="card"><div class="card-h"><span>🥧</span> Distribución de Gastos</div><div class="ch-wrap" style="height:240px"><canvas id="ch-gdist"></canvas></div></div>
+        <div class="rep-tab-stack">
+          <div class="card rep-chart-card"><div class="card-h"><span>🥧</span> Distribución de gastos</div><div class="ch-wrap rep-ch-wrap rep-ch-wrap--doughnut"><canvas id="ch-gdist"></canvas></div></div>
           <div class="card">
             <div class="card-h"><span>📋</span> Desglose por Concepto</div>
             <div class="tbl-wrap">
@@ -544,7 +534,7 @@
               <label>&nbsp;</label>
               <div class="de-btn-row">
                 <button type="button" class="btn btn-p" onclick="filtrarDesempenoEquipo()">🔍 Filtrar</button>
-                <button type="button" class="btn btn-p" onclick="exportarDesempenoPDF()">📄 Exportar a PDF</button>
+                <button type="button" class="btn btn-p rep-btn-pdf" onclick="exportarDesempenoPDF()">📄 Exportar PDF ejecutivo</button>
               </div>
             </div>
           </div>
@@ -721,6 +711,109 @@
           </div>
         </div>
 
+      </div>
+    </section>
+
+    <!-- ── CAJA Y CIERRES ── -->
+    <section class="pg" id="pg-caja-cierres">
+      <div class="sec-head">
+        <h2 class="sec-title">Caja y Cierres</h2>
+      </div>
+      <p class="arq-page-intro">Arqueo de efectivo por semanas, cuadre contra el sistema y reparto 50/50 entre socios sin mezclar las pacas.</p>
+
+      <div class="tabs tab-scroll caja-main-tabs" role="tablist" aria-label="Secciones de caja">
+        <button type="button" class="tab on" data-arq-tab="libre" onclick="arqSwitchMainTab('libre',this)">Calculadora libre</button>
+        <button type="button" class="tab" data-arq-tab="mensual" onclick="arqSwitchMainTab('mensual',this)">Cierre mensual</button>
+        <button type="button" class="tab" data-arq-tab="historial" onclick="arqSwitchMainTab('historial',this)">Historial</button>
+      </div>
+
+      <div id="arq-view-libre" class="arq-view">
+        <div class="card">
+          <div class="card-h"><span>🧮</span> Arqueo rápido</div>
+          <p class="arq-intro">Cuente billetes y monedas sin guardar en la nube. Ideal para arqueos puntuales.</p>
+          <div id="arq-libre-denom-host"></div>
+          <div class="arq-libre-total-panel">
+            <span class="arq-grand-lbl">Total contado</span>
+            <span class="arq-grand-val" id="arq-libre-total">$0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="arq-view-mensual" class="arq-view" style="display:none">
+        <div class="card arq-mes-card">
+          <div class="arq-mes-head">
+            <div>
+              <div class="card-h" style="margin-bottom:4px"><span>📅</span> Mes del cierre</div>
+              <p class="arq-mes-lbl" id="arq-mes-lbl">—</p>
+            </div>
+            <div class="field arq-mes-field">
+              <label for="arq-m">Mes / año</label>
+              <input type="month" id="arq-m" class="inp-month" onchange="arqOnMesChange()" title="Elegir mes y año">
+            </div>
+          </div>
+          <p id="arq-cuadre-loading" class="arq-cuadre-loading" style="display:none">Calculando neto esperado por semana…</p>
+        </div>
+
+        <div id="arq-step-conteo">
+          <div class="tabs tab-scroll arq-week-tabs" role="tablist" aria-label="Semanas del mes">
+            <button type="button" class="tab on" onclick="arqSwitchSemana(1,this)">Semana 1</button>
+            <button type="button" class="tab" onclick="arqSwitchSemana(2,this)">Semana 2</button>
+            <button type="button" class="tab" onclick="arqSwitchSemana(3,this)">Semana 3</button>
+            <button type="button" class="tab" onclick="arqSwitchSemana(4,this)">Semana 4</button>
+          </div>
+          <div id="arq-panels-host"></div>
+
+          <div class="arq-grand-panel">
+            <div class="arq-grand-summary">
+              <div class="arq-grand-block">
+                <span class="arq-grand-lbl">Gran total físico (4 semanas)</span>
+                <span class="arq-grand-val" id="arq-grand-total">$0.00</span>
+              </div>
+              <div class="arq-grand-block">
+                <span class="arq-grand-lbl">Total teórico sistema</span>
+                <span class="arq-grand-val arq-grand-val--muted" id="arq-total-teorico">$0.00</span>
+              </div>
+              <div class="arq-grand-block">
+                <span class="arq-grand-lbl">Diferencia mes</span>
+                <span class="arq-grand-val" id="arq-total-diff">$0.00</span>
+              </div>
+            </div>
+            <button type="button" class="btn btn-p btn-full" onclick="arqProcesarCierreClick()">Procesar cierre y reparto</button>
+            <p class="arq-grand-hint">Reparto 50/50 con trazabilidad: billetes semana por semana, sin mezclar pacas antes de repartir.</p>
+          </div>
+        </div>
+
+        <div id="arq-step-resultado" style="display:none">
+          <div id="arq-resultado-body"></div>
+          <div class="arq-result-actions">
+            <button type="button" class="btn btn-s" onclick="arqVolverConteo()">← Volver al conteo</button>
+            <button type="button" class="btn btn-ok" id="arq-btn-guardar" onclick="arqConfirmarGuardar()">Confirmar y guardar en Firebase</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="arq-view-historial" class="arq-view" style="display:none">
+        <div class="card">
+          <div class="card-h"><span>📋</span> Historial de cierres mensuales</div>
+          <p class="arq-intro">Cierres guardados en Firestore. Use <strong>Editar</strong> para corregir un conteo físico; al guardar se sobrescribe el mismo mes sin duplicar documentos.</p>
+          <p id="arq-hist-loading" class="arq-cuadre-loading">Cargando historial…</p>
+          <div id="arq-hist-table-wrap" class="tbl-wrap arq-hist-table-wrap" style="display:none">
+            <table id="arq-hist-table" class="tbl arq-hist-table" width="100%">
+              <thead>
+                <tr>
+                  <th>Mes / año</th>
+                  <th>Total esperado (sistema)</th>
+                  <th>Total físico (contado)</th>
+                  <th>Diferencia</th>
+                  <th class="arq-hist-sort-col">Orden</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="arq-hist-tbody"></tbody>
+            </table>
+          </div>
+          <p id="arq-hist-empty" class="arq-hist-empty" style="display:none">Aún no hay cierres mensuales guardados.</p>
+        </div>
       </div>
     </section>
 
@@ -956,6 +1049,38 @@
   </div>
 </div>
 
+<!-- ── MODAL CAPTURA CANTIDAD (GAVETA POS) ── -->
+<div class="mo-bg" id="mo-captura-cantidad" aria-hidden="true">
+  <div class="mo mo-captura-cantidad">
+    <div class="mo-head">
+      <h3 class="mo-title" id="arq-cap-title">Cantidad</h3>
+      <button type="button" class="mo-x" onclick="arqCerrarCapturaCantidad()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="mo-cap-body">
+      <div class="mo-cap-visual" id="arq-cap-visual">
+        <img id="arq-cap-img" class="mo-cap-img" src="" alt="" width="160" height="80">
+      </div>
+      <p class="mo-cap-hint" id="arq-cap-hint">¿Cuántos billetes de esta denominación?</p>
+      <input
+        type="number"
+        id="arq-cap-qty"
+        class="mo-cap-input"
+        min="0"
+        step="1"
+        value="0"
+        inputmode="numeric"
+        autocomplete="off"
+        onclick="this.select()"
+        aria-label="Cantidad"
+      >
+      <div class="mo-cap-actions">
+        <button type="button" class="btn btn-s" onclick="arqCerrarCapturaCantidad()">Cancelar</button>
+        <button type="button" class="btn mo-cap-btn-confirm" id="arq-cap-btn-ok" onclick="arqConfirmCapturaCantidad()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── MODAL AJUSTES TICKET TÉRMICO ── -->
 <div class="mo-bg" id="mo-ticket-thermal">
   <div class="mo" style="max-width:440px">
@@ -1039,6 +1164,8 @@
 <script defer src="js/admin-movimientos.js"></script>
 <script defer src="js/reportes.js"></script>
 <script defer src="js/desempeno-equipo.js"></script>
+<script defer src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
+<script defer src="js/arqueo-mensual.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script defer src="js/app.js"></script>
 <script defer src="js/historico-diario.js"></script>

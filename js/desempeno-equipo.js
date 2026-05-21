@@ -981,32 +981,34 @@ async function exportarDesempenoPDF() {
 
   try {
     const htmlTemplate = await dePreparePdfHtmlForExport(buildDesempenoPdfHtml());
-    const opt = {
-      margin: [12, 12, 14, 12],
-      filename: 'Desempeno_Equipo_' + inicio + '_' + fin + '.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        letterRendering: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        scrollX: 0,
-        scrollY: 0,
-      },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-      pagebreak: {
+    const opt =
+      typeof repHtml2pdfOptions === 'function'
+        ? repHtml2pdfOptions('Desempeno_Equipo_' + inicio + '_' + fin + '.pdf')
+        : {
+            margin: [12, 12, 14, 12],
+            filename: 'Desempeno_Equipo_' + inicio + '_' + fin + '.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false, backgroundColor: '#ffffff' },
+            jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+          };
+    if (!opt.pagebreak) {
+      opt.pagebreak = {
         mode: ['css', 'legacy'],
         before: '.de-pdf-page-break-before',
         avoid: ['.de-pdf-serv-item', '.de-pdf-serv-block', '.de-pdf-header', '.de-pdf-kpis', '.de-pdf-charts', '.de-pdf-sec-avoid'],
-      },
-    };
+      };
+    }
 
-    await html2pdf().from(htmlTemplate).set(opt).save();
-    showToast('ok', 'âœ… PDF generado correctamente.');
+    document.body.classList.add('rep-pdf-exporting');
+    try {
+      await html2pdf().from(htmlTemplate).set(opt).save();
+      showToast('ok', 'PDF generado correctamente.');
+    } finally {
+      document.body.classList.remove('rep-pdf-exporting');
+    }
   } catch (e) {
     console.error('exportarDesempenoPDF', e);
-    showToast('bad', 'âŒ No se pudo generar el PDF: ' + (e.message || e));
+    showToast('bad', 'No se pudo generar el PDF: ' + (e.message || e));
   }
 }
 
